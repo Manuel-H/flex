@@ -7,10 +7,10 @@ namespace com.Dunkingmachine.BitSerialization
     {
         public enum Mode {Read,Write}
         
-        public Mode BufferMode { get; private set; }
+        public Mode BufferMode { get; }
 
         private byte[] _buffer;
-        private List<byte> _listBuffer;
+        private readonly List<byte> _listBuffer;
         private int _index;
         private int _bitIndex;
         private bool _closed;
