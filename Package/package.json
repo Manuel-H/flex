@@ -1,0 +1,16 @@
+{
+  "name": "com.dunkingmachine.bitserialization",
+  "version": "0.0.1",
+  "displayName": "Bit Serializer",
+  "description": "Serializes Bits",
+  "unity": "2019.1",
+  "unityRelease": "0b5",
+  "dependencies": {
+ },
+ "keywords": [
+],
+  "author": {
+    "name": "Dunkingmachine",
+    "email": "contact.dunkingmachine@gmail.com"
+  }
+}
