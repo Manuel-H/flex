@@ -25,6 +25,7 @@ namespace com.Dunkingmachine.BitSerialization
         {
             BufferMode = Mode.Read;
             _buffer = byteBuffer;
+            _closed = true;
         }
 
         public ulong Read(int amount)
