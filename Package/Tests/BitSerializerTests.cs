@@ -1,7 +1,10 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
+using System.Text;
 using com.Dunkingmachine.BitSerialization;
 using NUnit.Framework;
 using Debug = UnityEngine.Debug;
+using Random = UnityEngine.Random;
 
 namespace MyPackages.BitSerialization.Tests
 {
@@ -148,6 +151,20 @@ namespace MyPackages.BitSerialization.Tests
                 Assert.AreEqual(true, serializer.ReadBool());
                 Assert.AreEqual(-378996, serializer.ReadVarInt());
             }
+        }
+        
+        [Test]
+        public void WriteString_StringExceedsMaxLength_ExceptionIsThrown()
+        {
+            // Generate string that is longer than short.MaxValue
+            var builder = new StringBuilder(short.MaxValue + 1);
+            for (var i = 0; i < short.MaxValue + 1; i++)
+            {
+                builder.Append((char) Random.Range('a', 'Z'));
+            }
+            
+            var serializer = new BitSerializer();
+            Assert.Throws<Exception>(() => serializer.WriteString(builder.ToString()));
         }
     }
 }

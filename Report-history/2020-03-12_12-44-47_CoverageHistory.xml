@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<coverage version="1.0" date="2020-03-12_12-44-47" tag="">
+  <assembly name="BitSerialization">
+    <class name="com.Dunkingmachine.BitSerialization.BitBuffer" coveredlines="78" coverablelines="79" totallines="116" coveredbranches="0" totalbranches="0" />
+    <class name="com.Dunkingmachine.BitSerialization.BitSerializer" coveredlines="101" coverablelines="102" totallines="146" coveredbranches="0" totalbranches="0" />
+  </assembly>
+</coverage>

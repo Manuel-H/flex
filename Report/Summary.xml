@@ -1,0 +1,23 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CoverageReport scope="Summary">
+  <Summary>
+    <Generatedon>3/12/2020 - 12:46:18 PM</Generatedon>
+    <Parser>MultiReportParser (3x CoberturaParser, 5x OpenCoverParser)</Parser>
+    <Assemblies>1</Assemblies>
+    <Classes>2</Classes>
+    <Files>2</Files>
+    <Coveredlines>180</Coveredlines>
+    <Uncoveredlines>1</Uncoveredlines>
+    <Coverablelines>181</Coverablelines>
+    <Totallines>262</Totallines>
+    <Linecoverage>99.4</Linecoverage>
+    <Coveredbranches>0</Coveredbranches>
+    <Totalbranches>0</Totalbranches>
+  </Summary>
+  <Coverage>
+    <Assembly name="BitSerialization" classes="2" coverage="99.4" coveredlines="180" coverablelines="181" totallines="262" branchcoverage="" coveredbranches="0" totalbranches="0">
+      <Class name="com.Dunkingmachine.BitSerialization.BitBuffer" coverage="100" coveredlines="79" coverablelines="79" totallines="116" branchcoverage="" coveredbranches="0" totalbranches="0" />
+      <Class name="com.Dunkingmachine.BitSerialization.BitSerializer" coverage="99" coveredlines="101" coverablelines="102" totallines="146" branchcoverage="" coveredbranches="0" totalbranches="0" />
+    </Assembly>
+  </Coverage>
+</CoverageReport>
