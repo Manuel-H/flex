@@ -15,6 +15,8 @@ namespace com.Dunkingmachine.BitSerialization
         private int _bitIndex;
         private bool _closed;
 
+        public bool LastByte => _index == _buffer.Length -1;
+
         public BitBuffer()
         {
             BufferMode = Mode.Write;
@@ -26,6 +28,11 @@ namespace com.Dunkingmachine.BitSerialization
             BufferMode = Mode.Read;
             _buffer = byteBuffer;
             _closed = true;
+        }
+
+        public void Skip(int amount)
+        {
+            IncrementIndex(amount);
         }
 
         public ulong Read(int amount)

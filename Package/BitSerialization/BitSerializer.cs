@@ -8,6 +8,7 @@ namespace com.Dunkingmachine.BitSerialization
 
         private readonly BitBuffer _buffer;
         public BitBuffer.Mode BufferMode => _buffer.BufferMode;
+        public bool LastByte => _buffer.LastByte;
 
         public BitSerializer()
         {
@@ -24,6 +25,10 @@ namespace com.Dunkingmachine.BitSerialization
             return _buffer.GetBytes();
         }
 
+        public void Skip(int bits)
+        {
+            _buffer.Skip(bits);
+        }
         
         public void WriteVarInt(long value)
         {
