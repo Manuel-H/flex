@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using com.Dunkingmachine.Utility;
 
 namespace com.Dunkingmachine.BitSerialization
 {
@@ -9,15 +11,19 @@ namespace com.Dunkingmachine.BitSerialization
     {
         protected Assembly Assembly;
         protected Dictionary<string, Type> DataTypes;
+        protected string DataPath;
+        protected string NameSpace;
         public void Build(Assembly assembly, string path, string nameSpace)
         {
+            DataPath = path;
+            if (!Directory.Exists(DataPath))
+                Directory.CreateDirectory(DataPath);
+            NameSpace = nameSpace;
             Assembly = assembly;
-            DataTypes = Assembly.ExportedTypes.Where(t => t.GetCustomAttribute<T>() != null).ToDictionary(GetFullTypeName, t => t);
+            DataTypes = Assembly.ExportedTypes.Where(t => t.GetCustomAttribute<T>() != null).ToDictionary(t => t.GetFullTypeName(), t => t);
+            OnPreBuild();
         }
-        
-        protected static string GetFullTypeName(Type type)
-        {
-            return type.FullName.Replace(type.Namespace + ".", "").Replace('+', '.');
-        }
+
+        protected abstract void OnPreBuild();
     }
 }

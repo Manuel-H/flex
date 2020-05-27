@@ -8,12 +8,12 @@ namespace com.Dunkingmachine.FlexSerialization
 {
     public static class FlexClassInfoUtility
     {
-        private const int ScalarInfoId = 0;
-        private const int ObjectInfoId = 1;
-        private const int ScalarArrayInfoId = 2;
-        private const int ObjectArrayInfoId = 3;
+        private const int SimpleInfoId = 0;
+        private const int ArrayInfoId = 1;
+        //private const int ObjectArrayInfoId = 3;
+        private const int DictionaryInfoId = 2;
         private const int InfoBits = 2;
-        private const int MemberIdBits = 16;
+        private const int MemberIdBits= 16;
         private const int MemberBitsBits = 6;
         public static FlexClassInfo ReadClassInfo(string path)
         {
@@ -48,17 +48,14 @@ namespace com.Dunkingmachine.FlexSerialization
         {
             switch (info)
             {
-                case FlexScalarInfo scalar:
-                    WriteMemberInfo(serializer, scalar);
+                case FlexSimpleTypeInfo simple:
+                    WriteMemberInfo(serializer, simple);
                     return;
-                case FlexObjectInfo obj:
-                    WriteMemberInfo(serializer, obj);
+                case FlexArrayInfo array:
+                    WriteMemberInfo(serializer, array);
                     return;
-                case FlexScalarArrayInfo scalarArr:
-                    WriteMemberInfo(serializer, scalarArr);
-                    return;
-                case FlexObjectArrayInfo objArr:
-                    WriteMemberInfo(serializer, objArr);
+                case FlexDictionaryInfo dict:
+                    WriteMemberInfo(serializer, dict);
                     return;
             }
         }
@@ -68,98 +65,114 @@ namespace com.Dunkingmachine.FlexSerialization
             var infotype = serializer.ReadInt(InfoBits);
             switch (infotype)
             {
-                case ScalarInfoId:
-                    return ReadScalarInfo(serializer);
-                case ObjectInfoId:
-                    return ReadObjectInfo(serializer);
-                case ScalarArrayInfoId:
-                    return ReadScalarArrayInfo(serializer);
-                case ObjectArrayInfoId:
-                    return ReadObjectArrayInfo(serializer);
+                case SimpleInfoId:
+                    return ReadSimpleInfo(serializer);
+                case ArrayInfoId:
+                    return ReadArrayInfo(serializer);
+                case DictionaryInfoId:
+                    return ReadDictionaryInfo(serializer);
             }
             throw new IndexOutOfRangeException("member info type out of range");
         }
 
-        private static FlexScalarInfo ReadScalarInfo(BitSerializer serializer)
+        private static FlexSimpleTypeInfo ReadSimpleInfo(BitSerializer serializer)
         {
-            return new FlexScalarInfo
+            return new FlexSimpleTypeInfo()
             {
                 MemberName = serializer.ReadString(),
                 MemberId = serializer.ReadInt(MemberIdBits),
-                MemberBits = serializer.ReadInt(MemberBitsBits)
+                Detail = ReadDetail(serializer)
             };
         }
 
-        private static FlexObjectInfo ReadObjectInfo(BitSerializer serializer)
+        private static FlexArrayInfo ReadArrayInfo(BitSerializer serializer)
         {
-            return new FlexObjectInfo
+            return new FlexArrayInfo()
             {
                 MemberName = serializer.ReadString(),
                 MemberId = serializer.ReadInt(MemberIdBits),
-                AssignableTypes = Enumerable.Range(0, serializer.ReadInt(8)).Select(i => serializer.ReadString()).ToArray()
+                Detail = ReadDetail(serializer)
             };
         }
 
-        private static FlexScalarArrayInfo ReadScalarArrayInfo(BitSerializer serializer)
+        private static FlexDictionaryInfo ReadDictionaryInfo(BitSerializer serializer)
         {
-            return new FlexScalarArrayInfo
+            return new FlexDictionaryInfo
             {
                 MemberName = serializer.ReadString(),
                 MemberId = serializer.ReadInt(MemberIdBits),
-                ElementBits = serializer.ReadInt(MemberBitsBits)
+                KeyDetail = ReadDetail(serializer),
+                ValueDetail = ReadDetail(serializer)
             };
         }
 
-        private static FlexObjectArrayInfo ReadObjectArrayInfo(BitSerializer serializer)
+        private static FlexDetail ReadDetail(BitSerializer serializer)
         {
-            return new FlexObjectArrayInfo
+            if (serializer.ReadBool())
+                return new FlexScalarDetail {MemberBits = serializer.ReadInt(MemberBitsBits), IsNumeric = serializer.ReadBool()};
+            string[] assignableTypes = new string[serializer.ReadInt(8)];
+            for (var i = 0; i < assignableTypes.Length; i++)
             {
-                MemberName = serializer.ReadString(),
-                MemberId = serializer.ReadInt(MemberIdBits),
-                AssignableTypes = Enumerable.Range(0, serializer.ReadInt(8)).Select(i => serializer.ReadString()).ToArray()
-            };
+                assignableTypes[i] = serializer.ReadString();
+            }
+            return new FlexObjectDetail {AssignableTypes = assignableTypes};
         }
         
         
 
-        private static void WriteMemberInfo(BitSerializer serializer, FlexScalarInfo info)
+        private static void WriteMemberInfo(BitSerializer serializer, FlexSimpleTypeInfo info)
         {
-            serializer.WriteInt(ScalarInfoId, InfoBits);
+            serializer.WriteInt(SimpleInfoId, InfoBits);
             serializer.WriteString(info.MemberName);
             serializer.WriteInt(info.MemberId, MemberIdBits);
-            serializer.WriteInt(info.MemberBits, MemberBitsBits);
+            WriteDetail(serializer, info.Detail);
         }
 
-        private static void WriteMemberInfo(BitSerializer serializer, FlexObjectInfo info)
+        private static void WriteMemberInfo(BitSerializer serializer, FlexArrayInfo info)
         {
-            serializer.WriteInt(ObjectInfoId, InfoBits);
+            serializer.WriteInt(ArrayInfoId, InfoBits);
             serializer.WriteString(info.MemberName);
             serializer.WriteInt(info.MemberId, MemberIdBits);
-            serializer.WriteInt(info.AssignableTypes.Length, 8);
-            foreach (var assignableType in info.AssignableTypes)
+            WriteDetail(serializer, info.Detail);
+        }
+
+        private static void WriteMemberInfo(BitSerializer serializer, FlexDictionaryInfo info)
+        {
+            serializer.WriteInt(DictionaryInfoId, InfoBits);
+            serializer.WriteString(info.MemberName);
+            serializer.WriteInt(info.MemberId, MemberIdBits);
+            WriteDetail(serializer, info.KeyDetail);
+            WriteDetail(serializer, info.ValueDetail);
+        }
+
+        private static void WriteDetail(BitSerializer serializer, FlexDetail detail)
+        {
+            switch (detail)
+            {
+                case FlexObjectDetail obJ:
+                    WriteDetail(serializer, obJ);
+                    break;
+                case FlexScalarDetail scl:
+                    WriteDetail(serializer, scl);
+                    break;
+            }
+        }
+
+        private static void WriteDetail(BitSerializer serializer, FlexObjectDetail detail)
+        {
+            serializer.WriteBool(false);
+            serializer.WriteInt(detail.AssignableTypes.Length, 8);
+            foreach (var assignableType in detail.AssignableTypes)
             {
                 serializer.WriteString(assignableType);
             }
         }
 
-        private static void WriteMemberInfo(BitSerializer serializer, FlexScalarArrayInfo info)
+        private static void WriteDetail(BitSerializer serializer, FlexScalarDetail detail)
         {
-            serializer.WriteInt(ScalarArrayInfoId, InfoBits);
-            serializer.WriteString(info.MemberName);
-            serializer.WriteInt(info.MemberId, MemberIdBits);
-            serializer.WriteInt(info.ElementBits, MemberBitsBits);
-        }
-
-        private static void WriteMemberInfo(BitSerializer serializer, FlexObjectArrayInfo info)
-        {
-            serializer.WriteInt(ObjectArrayInfoId, InfoBits);
-            serializer.WriteString(info.MemberName);
-            serializer.WriteInt(info.MemberId, MemberIdBits);
-            serializer.WriteInt(info.AssignableTypes.Length, 8);
-            foreach (var assignableType in info.AssignableTypes)
-            {
-                serializer.WriteString(assignableType);
-            }
+            serializer.WriteBool(true);
+            serializer.WriteInt(detail.MemberBits, MemberBitsBits);
+            serializer.WriteBool(detail.IsNumeric);
         }
     }
 }

@@ -9,24 +9,39 @@ namespace com.Dunkingmachine.FlexSerialization
     }
 
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class FlexDataMemberAttribute : Attribute
+    public class FlexIgnoreAttribute : Attribute
     {
-        public int Bits;
+        
+    }
 
-        public FlexDataMemberAttribute(int bits)
+    /// <summary>
+    /// Place this attribute on numeric data type members to assign a custom range of min/max values, which decreases the number of bits used to serialize
+    /// the member.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public class FlexNumericRangeAttribute : Attribute
+    {
+        public long MinValue;
+        public long MaxValue;
+        public FlexNumericRangeAttribute(long maxValue, long minValue = 0)
         {
-            Bits = bits;
+            MaxValue = maxValue;
+            MinValue = minValue;
         }
     }
 
+    /// <summary>
+    /// Place this attribute on floating point data members to compress their values. Can severely reduce size if the range is small and only a few decimals are
+    /// of significance. 
+    /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class FlexFloatAttribute : FlexDataMemberAttribute
+    public class FlexFloatRangeAttribute : FlexNumericRangeAttribute
     {
-        public int Exponent;
+        public byte Decimals;
 
-        public FlexFloatAttribute(int bits, int exponent) : base(bits)
+        public FlexFloatRangeAttribute(long maxValue, long minValue, byte decimals) : base(maxValue, minValue)
         {
-            Exponent = exponent;
+            Decimals = decimals;
         }
     }
 }
