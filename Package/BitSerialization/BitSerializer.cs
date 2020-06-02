@@ -71,22 +71,43 @@ namespace com.Dunkingmachine.BitSerialization
             if (value >= 0)
             {
                 _buffer.Write(0, 1);
-                _buffer.Write((ulong) value, bits);
+                _buffer.Write((ulong) value, bits-1);
             }
             else
             {
                 _buffer.Write(1, 1);
-                _buffer.Write((ulong) (value * -1), bits);
+                _buffer.Write((ulong) (value * -1), bits-1);
             }
         }
 
         public int ReadInt(int bits)
         {
             var sign = _buffer.Read(1);
-            var value = (int) _buffer.Read(bits);
+            var value = (int) _buffer.Read(bits-1);
             if (sign == 1)
                 value *= -1;
             return value;
+        }
+        
+        public void WriteUInt(uint value, int bits)
+        {
+            _buffer.Write((ulong) (value * -1), bits);
+        }
+
+        public uint ReadUInt(int bits)
+        {
+            var value = (uint) _buffer.Read(bits);
+            return value;
+        }
+        
+        public byte ReadByte()
+        {
+            return (byte) _buffer.Read(8);
+        }
+
+        public void WriteByite(byte value)
+        {
+            _buffer.Write(value, 8);
         }
 
         public void WriteBool(bool value)

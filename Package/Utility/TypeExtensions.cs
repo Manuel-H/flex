@@ -8,7 +8,11 @@ namespace com.Dunkingmachine.Utility
         private static readonly Type TypeOfString = typeof(string);
         private static readonly Type TypeOfList = typeof(List<>);
         private static readonly Type TypeOfDictionary = typeof(Dictionary<,>);
-        
+
+        public static bool IsInstantiableType(this Type type)
+        {
+            return !type.IsAbstract && !type.IsInterface && (type.IsClass || (type.IsValueType && !type.IsScalarType()));
+        }
         public static bool IsScalarType(this Type type)
         {
             return type.IsPrimitive || type == TypeOfString || type.IsEnum;

@@ -1,5 +1,6 @@
 ﻿using com.Dunkingmachine.FlexSerialization;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace MyPackages.BitSerialization.Tests
@@ -9,8 +10,7 @@ namespace MyPackages.BitSerialization.Tests
         [Test]
         public void TestDebug()
         {
-            var builder = new FlexBuilder();
-            builder.Build(GetType().Assembly, Application.dataPath + "/Editor/FlexTestData", "");
+
         }
     }
 }

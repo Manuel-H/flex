@@ -8,28 +8,78 @@ namespace com.Dunkingmachine.FlexSerialization
     
     public class FlexSerializer : BitSerializer
     {
-        public const int EndStructureId = 0;
-        public const int IsNullId = 1;
+        public const uint EndStructureId = 0;
+        public const uint IsNullId = 1;
 
         private int _currentId = -1;
 
         public int CurrentId => _currentId == -1 ? ReadId() : _currentId;
 
+        public FlexSerializer() : base()
+        {
+            
+        }
+
+        public FlexSerializer(byte[] bytes) : base(bytes)
+        {
+            
+        }
         public int ReadId()
         {
-            return _currentId = ReadInt(ReadBool() ? 5 : 9);
+            return _currentId = (int) ReadUInt(ReadBool() ? 5 : 9);
         }
 
         public void WriteId(int id)
         {
             WriteBool(id > 31);
-            WriteInt(id, id > 31 ? 9 : 5);
+            WriteUInt((uint) id, id > 31 ? 9 : 5);
+        }
+
+        public int ReadArrayLength()
+        {
+            if (!ReadBool())
+                return (int) ReadUInt(4);
+            if (!ReadBool())
+            {
+                var length = ReadUInt(8);
+                if (length == 0) //this pattern is interpreted as null
+                    return -1;
+                return (int) length;
+            }
+            return (int) ReadUInt(20);
+        }
+        public void WriteArrayLength(int length)
+        {
+            if (length == -1) //-1 is interpreted as null
+            {
+                WriteBool(true);
+                WriteBool(false);
+                WriteUInt(0, 8);
+                return;
+            }
+            WriteBool(length > 15);
+            if (length > 15)
+            {
+                WriteBool(length > 255);
+                WriteUInt((uint) length, length > 255 ? 20 : 8);
+            } else WriteUInt((uint) length, 4);
+        }
+
+        public int ReadTypeIndex()
+        {
+            return (int) ReadUInt(ReadBool() ? 7 : 3);
+        }
+
+        public void WriteTypeIndex(int index)
+        {
+            WriteBool(index > 7);
+            WriteUInt((uint) index ,index > 7 ? 7 : 3);
         }
         public FlexToken ReadToken()
         {
             if (!ReadBool())
                 return FlexToken.ScalarValue;
-            switch (ReadInt(2))
+            switch (ReadUInt(2))
             {
                 case 0: return FlexToken.BeginArray;
                 case 1: return FlexToken.EndArray;
@@ -45,16 +95,16 @@ namespace com.Dunkingmachine.FlexSerialization
             switch (token)
             {
                 case FlexToken.BeginArray:
-                    WriteInt(0,2);
+                    WriteUInt(0,2);
                     break;
                 case FlexToken.EndArray:
-                    WriteInt(1,2);
+                    WriteUInt(1,2);
                     break;
                 case FlexToken.BeginObject:
-                    WriteInt(2,2);
+                    WriteUInt(2,2);
                     break;
                 case FlexToken.EndObject:
-                    WriteInt(3,2);
+                    WriteUInt(3,2);
                     break;
             }
         }

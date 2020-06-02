@@ -14,33 +14,35 @@ namespace com.Dunkingmachine.FlexSerialization
         private const int DictionaryInfoId = 2;
         private const int InfoBits = 2;
         private const int MemberIdBits= 16;
-        private const int MemberBitsBits = 6;
+        private const int MemberBitsBits = 7;
         public static FlexClassInfo ReadClassInfo(string path)
         {
             var bytes = File.ReadAllBytes(path);
-            var serializer = new BitSerializer(bytes);
-            var infos = new List<FlexMemberInfo>();
+            var serializer = new FlexSerializer(bytes);
             var classinfo = new FlexClassInfo
             {
                 TypeName = serializer.ReadString()
             };
-            while (!serializer.LastByte)
+            classinfo.MemberInfos = new FlexMemberInfo[serializer.ReadArrayLength()];
+            for (var i = 0; i < classinfo.MemberInfos.Length; i++)
             {
-                infos.Add(ReadMemberInfo(serializer));
+                classinfo.MemberInfos[i] = ReadMemberInfo(serializer);
             }
 
-            classinfo.MemberInfos = infos.ToArray();
+            classinfo.SerializeNull = serializer.ReadBool();
             return classinfo;
         }
 
         public static void WriteClassInfo(FlexClassInfo info, string path)
         {
-            var serializer = new BitSerializer();
+            var serializer = new FlexSerializer();
             serializer.WriteString(info.TypeName);
+            serializer.WriteArrayLength(info.MemberInfos.Length);
             foreach (var memberInfo in info.MemberInfos)
             {
                 WriteMemberInfo(serializer, memberInfo);
             }
+            serializer.WriteBool(info.SerializeNull);
             File.WriteAllBytes(path, serializer.GetBytes());
         }
 
@@ -109,7 +111,7 @@ namespace com.Dunkingmachine.FlexSerialization
         private static FlexDetail ReadDetail(BitSerializer serializer)
         {
             if (serializer.ReadBool())
-                return new FlexScalarDetail {MemberBits = serializer.ReadInt(MemberBitsBits), IsNumeric = serializer.ReadBool()};
+                return new FlexScalarDetail {MemberBits = serializer.ReadInt(MemberBitsBits)+1, IsNumeric = serializer.ReadBool()};
             string[] assignableTypes = new string[serializer.ReadInt(8)];
             for (var i = 0; i < assignableTypes.Length; i++)
             {
@@ -171,7 +173,7 @@ namespace com.Dunkingmachine.FlexSerialization
         private static void WriteDetail(BitSerializer serializer, FlexScalarDetail detail)
         {
             serializer.WriteBool(true);
-            serializer.WriteInt(detail.MemberBits, MemberBitsBits);
+            serializer.WriteInt(detail.MemberBits-1, MemberBitsBits);
             serializer.WriteBool(detail.IsNumeric);
         }
     }
