@@ -64,7 +64,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private static FlexMemberInfo ReadMemberInfo(BitSerializer serializer)
         {
-            var infotype = serializer.ReadInt(InfoBits);
+            var infotype = serializer.ReadUInt(InfoBits);
             switch (infotype)
             {
                 case SimpleInfoId:
@@ -124,7 +124,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private static void WriteMemberInfo(BitSerializer serializer, FlexSimpleTypeInfo info)
         {
-            serializer.WriteInt(SimpleInfoId, InfoBits);
+            serializer.WriteUInt(SimpleInfoId, InfoBits);
             serializer.WriteString(info.MemberName);
             serializer.WriteInt(info.MemberId, MemberIdBits);
             WriteDetail(serializer, info.Detail);
@@ -132,7 +132,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private static void WriteMemberInfo(BitSerializer serializer, FlexArrayInfo info)
         {
-            serializer.WriteInt(ArrayInfoId, InfoBits);
+            serializer.WriteUInt(ArrayInfoId, InfoBits);
             serializer.WriteString(info.MemberName);
             serializer.WriteInt(info.MemberId, MemberIdBits);
             WriteDetail(serializer, info.Detail);
@@ -140,7 +140,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private static void WriteMemberInfo(BitSerializer serializer, FlexDictionaryInfo info)
         {
-            serializer.WriteInt(DictionaryInfoId, InfoBits);
+            serializer.WriteUInt(DictionaryInfoId, InfoBits);
             serializer.WriteString(info.MemberName);
             serializer.WriteInt(info.MemberId, MemberIdBits);
             WriteDetail(serializer, info.KeyDetail);

@@ -91,7 +91,7 @@ namespace com.Dunkingmachine.BitSerialization
         
         public void WriteUInt(uint value, int bits)
         {
-            _buffer.Write((ulong) (value * -1), bits);
+            _buffer.Write(value, bits);
         }
 
         public uint ReadUInt(int bits)

@@ -44,7 +44,7 @@ namespace com.Dunkingmachine.BitSerialization
                 return;
             ProcessedTypes.Add(type);
             var content = CreateClassStringForType(type);
-            File.WriteAllText(DataPath + "/" + type.Name + "Serializer.cs", content);
+            File.WriteAllText(DataPath + "/" + type.GetFullTypeName().Replace(".","") + "Serializer.cs", content);
         }
         
         private string CreateClassStringForType(Type type)
@@ -65,33 +65,42 @@ namespace com.Dunkingmachine.BitSerialization
                 }
             }
 
-            var ser = CreateSerializationMethod();
+            var ser = CreateSerializationMethod(type, members, extension, usings);
             var des = CreateDeserializationMethod(type, members, extension, usings);
             var cb = new StringBuilder();
             foreach (var @using in usings)
             {
                 if (string.IsNullOrEmpty(@using))
                     continue;
-                cb.Append("using " + @using + ";" + Environment.NewLine);
+                cb.AppendLine("using " + @using + ";");
             }
 
-            cb.Append(Environment.NewLine);
-            cb.Append("namespace "+NameSpace + Environment.NewLine);
-            cb.Append("{" + Environment.NewLine);
-            cb.Append("\tpublic static class " + type.Name + "Serializer" + Environment.NewLine);
-            cb.Append("\t{" + Environment.NewLine);
+            cb.AppendLine();
+            cb.AppendLine("namespace "+NameSpace);
+            cb.AppendLine("{");
+            cb.AppendLine("\tpublic static class " + type.Name + "Serializer");
+            cb.AppendLine("\t{");
             if (extension != null)
-                cb.Append(extension.Fields + Environment.NewLine);
-            cb.Append(ser);
+                cb.AppendLine(extension.Fields);
+            cb.AppendLine(ser);
             cb.Append(des);
-            cb.Append("\t}" + Environment.NewLine);
+            cb.AppendLine("\t}");
             cb.Append("}");
             return cb.ToString();
         }
 
-        private string CreateSerializationMethod()
+        protected abstract string CreateSerializationCode(Type type, MemberInfo[] members, List<string> usings);
+        private string CreateSerializationMethod(Type type, MemberInfo[] members, CustomExtension extension, List<string> usings)
         {
-            return Environment.NewLine;
+            StringBuilder method = new StringBuilder();
+            var fullname = type.GetFullTypeName();
+            method.AppendLine("\t\tpublic static void Serialize("+fullname+" item, "+SerializerTypeString+" serializer)");
+            method.AppendLine("\t\t{");
+            method.Append(CreateSerializationCode(type, members, usings));
+            if (extension != null)
+                method.AppendLine(extension.SerializeActions);
+            method.AppendLine("\t\t}");
+            return method.ToString();
         }
 
         protected abstract string CreateDeserializationCode(Type type, MemberInfo[] members, List<string> usings);
@@ -101,14 +110,14 @@ namespace com.Dunkingmachine.BitSerialization
         {
             StringBuilder method = new StringBuilder();
             var fullname = type.GetFullTypeName();
-            method.Append("\t\tpublic static " + fullname + " Deserialize(object @default, "+SerializerTypeString+" serializer)" + Environment.NewLine);
-            method.Append("\t\t{" + Environment.NewLine);
-            method.Append("\t\t\tvar item = "+ (type.IsValueType ? "" :("@default as "+fullname+" ?? "))+"new " + fullname + "();" + Environment.NewLine);
+            method.AppendLine("\t\tpublic static " + fullname + " Deserialize(object @default, "+SerializerTypeString+" serializer)");
+            method.AppendLine("\t\t{");
+            method.AppendLine("\t\t\tvar item = "+ (type.IsValueType ? "" :("@default as "+fullname+" ?? "))+"new " + fullname + "();");
             method.Append(CreateDeserializationCode(type, members, usings));
             if (extension != null)
-                method.Append(extension.DeserializeActions + Environment.NewLine);
-            method.Append("\t\t\treturn item;" + Environment.NewLine);
-            method.Append("\t\t}" + Environment.NewLine);
+                method.AppendLine(extension.DeserializeActions);
+            method.AppendLine("\t\t\treturn item;");
+            method.AppendLine("\t\t}");
             return method.ToString();
         }
 

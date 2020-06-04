@@ -8,8 +8,8 @@ namespace com.Dunkingmachine.FlexSerialization
     
     public class FlexSerializer : BitSerializer
     {
-        public const uint EndStructureId = 0;
-        public const uint IsNullId = 1;
+        public const int EndStructureId = 0;
+        public const int IsNullId = 1;
 
         private int _currentId = -1;
 
@@ -26,7 +26,7 @@ namespace com.Dunkingmachine.FlexSerialization
         }
         public int ReadId()
         {
-            return _currentId = (int) ReadUInt(ReadBool() ? 5 : 9);
+            return _currentId = (int) ReadUInt(ReadBool() ? 9 : 5);
         }
 
         public void WriteId(int id)
