@@ -254,6 +254,16 @@ namespace com.Dunkingmachine.BitSerialization
                 value = -value;
             return value;
         }
+
+        public ulong Read(int bits)
+        {
+            return _buffer.Read(bits);
+        }
+
+        public void Write(uint value, int bits)
+        {
+            _buffer.Write(value,bits);
+        }
         
         public void WriteUInt(uint value, int bits)
         {
