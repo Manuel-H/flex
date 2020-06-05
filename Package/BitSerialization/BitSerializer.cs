@@ -152,7 +152,7 @@ namespace com.Dunkingmachine.BitSerialization
                 {
                     if (value > 127.999f)
                     {
-                        WriteQuantizedFloat(value, 1, 125, 17);
+                        WriteQuantizedFloat(value, 1, 128, 17);
                     }
                     else
                     {
