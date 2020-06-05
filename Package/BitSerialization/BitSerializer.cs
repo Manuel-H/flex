@@ -29,8 +29,35 @@ namespace com.Dunkingmachine.BitSerialization
         {
             _buffer.Skip(bits);
         }
-        
-        public void WriteVarInt(long value)
+
+        public void WriteEnumInt(uint value)
+        {
+            if (value > 15)
+            {
+                _buffer.Write(1,1);
+                if (value > 1023)
+                {
+                    _buffer.Write(1,1);
+                    _buffer.Write(value, 32);
+                }
+                else
+                {
+                    _buffer.Write(0,1);
+                    _buffer.Write(value, 10);
+                }
+            }
+            else
+            {
+                _buffer.Write(0,1);
+                _buffer.Write(value, 4);
+            }
+        }
+
+        public uint ReadEnumInt()
+        {
+            return (uint) _buffer.Read(ReadBool() ? ReadBool() ? 32 : 10 : 4);
+        }
+        public void WriteVarInt(int value)
         {
             if (value >= 0)
             {
@@ -39,7 +66,49 @@ namespace com.Dunkingmachine.BitSerialization
             else
             {
                 _buffer.Write(1,1);
-                value *= -1;
+                value = -value;
+            }
+            
+            if (value > 255)
+            {
+                _buffer.Write(1,1);
+                if (value > 16383)
+                {
+                    _buffer.Write(1,1);
+                    _buffer.Write((ulong) value, 31);
+                }
+                else
+                {
+                    _buffer.Write(0,1);
+                    _buffer.Write((ulong) value, 14);
+                }
+            }
+            else
+            {
+                _buffer.Write(0,1);
+                _buffer.Write((ulong) value, 8);
+            }
+        }
+
+        public int ReadVarInt()
+        {
+            var sign = _buffer.Read(1);
+            var value = (int) _buffer.Read(ReadBool() ? ReadBool() ? 31 : 14 : 8);
+            if (sign == 1)
+                value = -value;
+            return value;
+        }
+        
+        public void WriteVarLong(long value)
+        {
+            if (value >= 0)
+            {
+                _buffer.Write(0,1);
+            }
+            else
+            {
+                _buffer.Write(1,1);
+                value = -value;
             }
             
             do
@@ -49,8 +118,8 @@ namespace com.Dunkingmachine.BitSerialization
                 _buffer.Write(value > 0 ? 1u : 0, 1);
             } while (value > 0);
         }
-
-        public long ReadVarInt()
+        
+        public long ReadVarLong()
         {
             var sign = _buffer.Read(1);
             var value = 0L;
@@ -60,10 +129,107 @@ namespace com.Dunkingmachine.BitSerialization
                 value |= (long) (_buffer.Read(7) << shift);
                 shift += 7;
             } while (_buffer.Read(1) == 1);
-
+        
             if (sign == 1)
-                value *= -1;
+                value = -value;
             return value;
+        }
+        public void WriteFloatLossyAuto(float value)
+        {
+            var ovalue = value;
+            if (value < 0)
+                value = -value;
+            if (value > 1023.99f || value < 0.0078125f)
+            {
+                _buffer.Write(0,3);
+                WriteFloatLossless(ovalue);
+                return;
+            }
+            
+            if (value > 0.4999f)
+            {
+                if (value > 15.999f)
+                {
+                    if (value > 127.999f)
+                    {
+                        WriteQuantizedFloat(value, 1, 125, 17);
+                    }
+                    else
+                    {
+                        WriteQuantizedFloat(value, 2, 512, 16);
+                    }
+                }
+                else if (value > 1.999f)
+                {
+                    WriteQuantizedFloat(value, 3, 4096, 16);
+                }
+                else
+                {
+                    WriteQuantizedFloat(value, 4, 16384, 15);
+                }
+            }
+            else if (value > 0.03124999f)
+            {
+                if (value > 0.124999f)
+                {
+                    WriteQuantizedFloat(value, 5, 65536, 15);
+                }
+                else
+                {
+                    WriteQuantizedFloat(value, 6, 131072, 14);
+                }
+            }
+            else
+            {
+                WriteQuantizedFloat(value, 7, 262144, 13);
+            }
+            _buffer.Write(ovalue < 0 ? 1u : 0, 1);
+        }
+
+        private void WriteQuantizedFloat(float value, ulong n, int mult, int bits)
+        {
+            _buffer.Write(n,3);
+            _buffer.Write((ulong)(value*mult+0.5f), bits);
+        }
+
+
+        private float ReadFloatLossyAuto(ulong cfg)
+        {
+            switch (cfg)
+            {
+                case 1:
+                    return ReadQuantizedFloat(128, 17);
+                case 2:
+                    return ReadQuantizedFloat(512, 16);
+                case 3:
+                    return ReadQuantizedFloat(4096, 16);
+                case 4:
+                    return ReadQuantizedFloat(16384, 15);
+                case 5:
+                    return ReadQuantizedFloat(65536, 15);
+                case 6:
+                    return ReadQuantizedFloat(131072, 14);
+                case 7:
+                    return ReadQuantizedFloat(262144, 13);
+                default:
+                    throw new Exception("What the Fuck Did You Just Bring Upon This Cursed Land");
+            }
+        }
+        public float ReadFloatLossyAuto()
+        {
+            var cfg = _buffer.Read(3);
+            if (cfg == 0)
+                return ReadFloatLossless();
+            var value = ReadFloatLossyAuto(cfg);
+            if (_buffer.Read(1) == 1)
+                value = -value;
+            return value;
+        }
+        
+        
+        private float ReadQuantizedFloat(int mult, int bits)
+        {
+            return ((float) _buffer.Read(bits)) / mult;
         }
 
         public void WriteInt(int value, int bits)
@@ -76,7 +242,7 @@ namespace com.Dunkingmachine.BitSerialization
             else
             {
                 _buffer.Write(1, 1);
-                _buffer.Write((ulong) (value * -1), bits-1);
+                _buffer.Write((ulong) -value, bits-1);
             }
         }
 
@@ -85,7 +251,7 @@ namespace com.Dunkingmachine.BitSerialization
             var sign = _buffer.Read(1);
             var value = (int) _buffer.Read(bits-1);
             if (sign == 1)
-                value *= -1;
+                value = -value;
             return value;
         }
         

@@ -70,6 +70,24 @@ namespace MyPackages.BitSerialization.Tests
             Assert.AreEqual(1==0, reader.ReadBool());
             Assert.AreEqual(false, reader.ReadBool());
         }
+
+        [Test]
+        public void TestLossyFloatSerialization()
+        {
+            var writer = new BitSerializer();
+            writer.WriteFloatLossyAuto(1.795f);
+            writer.WriteFloatLossyAuto(0.0275f);
+            writer.WriteFloatLossyAuto(-29.76f);
+            writer.WriteFloatLossyAuto(56971f);
+            writer.WriteFloatLossyAuto(0.00000145f);
+            var bytes = writer.GetBytes();
+            var reader = new BitSerializer(bytes);
+            Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() - 1.795f) < 0.0001f);
+            Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() - 0.0275f) < 0.00001f);
+            Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() + 29.76f) < 0.001f);
+            Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() - 56971f) < 0.00001f);
+            Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() - 0.00000145f) < 0.00001f);
+        }
         
         [Test]
         public void TestFloatSerialization()
@@ -104,13 +122,13 @@ namespace MyPackages.BitSerialization.Tests
             serializer.WriteVarInt(17);
             serializer.WriteVarInt(2896);
             serializer.WriteVarInt(-37899644);
-            serializer.WriteVarInt(14165154651856);
+            serializer.WriteVarLong(14165154651856);
             var bytes = serializer.GetBytes();
             serializer = new BitSerializer(bytes);
             Assert.AreEqual(17, serializer.ReadVarInt());
             Assert.AreEqual(2896, serializer.ReadVarInt());
             Assert.AreEqual(-37899644, serializer.ReadVarInt());
-            Assert.AreEqual(14165154651856, serializer.ReadVarInt());
+            Assert.AreEqual(14165154651856, serializer.ReadVarLong());
         }
 
         [Test]
@@ -134,7 +152,7 @@ namespace MyPackages.BitSerialization.Tests
             var serializer = new BitSerializer();
             for (int i = 0; i < 100; i++)
             {
-                serializer.WriteInt(-18151826, 25);
+                serializer.WriteInt(-18151826, 26);
                 serializer.WriteString("9SD)=js5adf09ü'*df0ß");
                 serializer.WriteFloatLossless(1 / 461611f);
                 serializer.WriteBool(true);
@@ -145,7 +163,7 @@ namespace MyPackages.BitSerialization.Tests
 
             for (int i = 0; i < 100; i++)
             {
-                Assert.AreEqual(-18151826, serializer.ReadInt(25));
+                Assert.AreEqual(-18151826, serializer.ReadInt(26));
                 Assert.AreEqual("9SD)=js5adf09ü'*df0ß", serializer.ReadString());
                 Assert.AreEqual(1/461611f, serializer.ReadFloatLossless());
                 Assert.AreEqual(true, serializer.ReadBool());

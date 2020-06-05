@@ -130,9 +130,10 @@ namespace com.Dunkingmachine.FlexSerialization
             return type.IsScalarType()
                 ? (FlexDetail) new FlexScalarDetail
                 {
-                    MemberBits = GetBits(info, type),
+                    MemberBits = GetBits(info, type, out var defaultBits),
                     Type = type,
-                    IsNumeric = type != typeof(string) && type != typeof(bool)
+                    IsNumeric = type != typeof(string) && type != typeof(bool),
+                    DefaultBits = defaultBits
                 }
                 : new FlexObjectDetail
                 {
@@ -196,11 +197,12 @@ namespace com.Dunkingmachine.FlexSerialization
         private int GetBitsNeeded(FlexNumericRangeAttribute attribute)
         {
             //TODO
-            return 10;
+            return 32;
         }
 
-        private int GetBits(MemberInfo info, Type type)
+        private int GetBits(MemberInfo info, Type type, out bool defaultBits)
         {
+            defaultBits = false;
             var fm = info.GetCustomAttribute<FlexFloatRangeAttribute>();
             if (fm != null)
             {
@@ -212,6 +214,7 @@ namespace com.Dunkingmachine.FlexSerialization
             var dm = info.GetCustomAttribute<FlexNumericRangeAttribute>();
             if (dm != null)
                 return GetBitsNeeded(dm);
+            defaultBits = true;
             if (type.IsEnum)
                 type = type.GetEnumUnderlyingType();
             if (type == typeof(double) || type == typeof(long) || type == typeof(ulong))
@@ -518,9 +521,9 @@ namespace com.Dunkingmachine.FlexSerialization
             var type = detail.Type;
             var bits = detail.MemberBits;
             if (type == typeof(float))
-                return "serializer.WriteFloatLossless("+access+")"; //TODO:quantized float
+                return detail.DefaultBits ? "serializer.WriteFloatLossyAuto("+access+")" : "serializer.WriteFloatLossless("+access+")";
             if (type == typeof(int))
-                return "serializer.WriteInt("+access+"," + bits + ")";
+                return detail.DefaultBits ? "serializer.WriteVarInt("+access+")" : "serializer.WriteInt("+access+"," + bits + ")";
             if (type == typeof(uint))
                 return "serializer.WriteUInt("+access+"," + bits + ")";
             if (type == typeof(ulong))
@@ -540,7 +543,7 @@ namespace com.Dunkingmachine.FlexSerialization
                     return "serializer.WriteByte((byte)"+access+")";
                 }
 
-                return "serializer.WriteInt((int)"+access+"," + bits + ")";
+                return detail.DefaultBits ? "serializer.WriteEnumInt((uint)("+et.Name+")"+access+")" : "serializer.WriteInt((int)"+access+"," + bits + ")";
             }
 
             throw new NotImplementedException("missing type " + type.Name);
@@ -551,9 +554,9 @@ namespace com.Dunkingmachine.FlexSerialization
             var type = detail.Type;
             var bits = detail.MemberBits;
             if (type == typeof(float))
-                return "serializer.ReadFloatLossless()"; //TODO:quantized float
+                return detail.DefaultBits ? "serializer.ReadFloatLossyAuto()" : "serializer.ReadFloatLossless()";
             if (type == typeof(int))
-                return "serializer.ReadInt(" + bits + ")";
+                return detail.DefaultBits ? "serializer.ReadVarInt()" : "serializer.ReadInt(" + bits + ")";
             if (type == typeof(uint))
                 return "serializer.ReadUInt(" + bits + ")";
             if (type == typeof(ulong))
@@ -573,7 +576,7 @@ namespace com.Dunkingmachine.FlexSerialization
                     return "(" + typename + ")serializer.ReadByte()";
                 }
 
-                return "(" + typename + ") serializer.ReadInt(" + bits + ")";
+                return detail.DefaultBits ? "(" + typename + ")("+et.Name+") serializer.ReadEnumInt()" : "(" + typename + ") serializer.ReadInt(" + bits + ")";
             }
 
             throw new NotImplementedException("missing type " + type.Name);

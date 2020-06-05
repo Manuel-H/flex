@@ -70,12 +70,13 @@ namespace com.Dunkingmachine.FlexSerialization
         public Type Type;
         public bool IsNumeric;
         public int MemberBits;
+        public bool DefaultBits;
         
         public override bool Merge(FlexDetail info)
         {
             if (!(info is FlexScalarDetail scalar))
                 return false;
-            return IsNumeric == scalar.IsNumeric && MemberBits == scalar.MemberBits;
+            return IsNumeric == scalar.IsNumeric && MemberBits == scalar.MemberBits && DefaultBits == scalar.DefaultBits;
         }
     }
 

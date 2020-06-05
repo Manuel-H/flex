@@ -111,7 +111,7 @@ namespace com.Dunkingmachine.FlexSerialization
         private static FlexDetail ReadDetail(BitSerializer serializer)
         {
             if (serializer.ReadBool())
-                return new FlexScalarDetail {MemberBits = serializer.ReadInt(MemberBitsBits)+1, IsNumeric = serializer.ReadBool()};
+                return new FlexScalarDetail {MemberBits = serializer.ReadInt(MemberBitsBits)+1, IsNumeric = serializer.ReadBool(), DefaultBits = serializer.ReadBool()};
             string[] assignableTypes = new string[serializer.ReadInt(8)];
             for (var i = 0; i < assignableTypes.Length; i++)
             {
@@ -175,6 +175,7 @@ namespace com.Dunkingmachine.FlexSerialization
             serializer.WriteBool(true);
             serializer.WriteInt(detail.MemberBits-1, MemberBitsBits);
             serializer.WriteBool(detail.IsNumeric);
+            serializer.WriteBool(detail.DefaultBits);
         }
     }
 }
