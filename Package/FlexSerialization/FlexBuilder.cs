@@ -38,8 +38,11 @@ namespace com.Dunkingmachine.FlexSerialization
             var cb = new StringBuilder();
             var usings = new List<string>
             {
-                "System","System.Collections.Generic",NameSpace
+                "System","System.Collections.Generic"
             };
+            //namespace will only exist if classes are built
+            if(types.Count > 0)
+                usings.Add(NameSpace);
             foreach (var type in types)
             {
                 if(!usings.Contains(type.Namespace))
