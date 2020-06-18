@@ -12,6 +12,7 @@ namespace com.Dunkingmachine.FlexSerialization
     public class FlexBuilder : BitBuilder<FlexDataAttribute>
     {
         private const string MetaFileExtension = "flexmeta";
+        private const string BuiltinNamespace = "com.Dunkingmachine.FlexSerialization";
         private Dictionary<string, FlexClassInfo> _infos = new Dictionary<string, FlexClassInfo>();
 
         private void BuildMetaFiles(string path)
@@ -19,6 +20,59 @@ namespace com.Dunkingmachine.FlexSerialization
             LoadMetaFiles(path);
             GenerateClassInfos();
             WriteMetaFiles(path);
+        }
+
+        protected override void OnPostBuild()
+        {
+            BuildFlexMethodProvider(ProcessedTypes);
+        }
+
+        public override void Clear(string path)
+        {
+            File.Delete(path+"/FlexInitializer.cs");
+            base.Clear(path);
+        }
+
+        private void BuildFlexMethodProvider(List<Type> types)
+        {
+            var cb = new StringBuilder();
+            var usings = new List<string>
+            {
+                "System","System.Collections.Generic",NameSpace
+            };
+            foreach (var type in types)
+            {
+                if(!usings.Contains(type.Namespace))
+                    usings.Add(type.Namespace);
+            }
+            foreach (var @using in usings)
+            {
+                cb.AppendLine("using " + @using + ";");
+            }
+
+            // if (_namespace != BUILTIN_NAMESPACE)
+            //     cb.AppendLine("using " + _namespace+";");
+            cb.AppendLine(Environment.NewLine);
+            cb.AppendLine("namespace "+BuiltinNamespace );
+            cb.AppendLine("{" );
+            cb.AppendLine("\tpublic static class FlexInitializer" );
+            cb.AppendLine("\t{");
+            cb.AppendLine("\t\tpublic static void Initialize()");
+            cb.AppendLine("\t\t{");
+            cb.AppendLine("\t\t\tFlexConvert.Initializer.Initialize(SerializeMethods, DeserializeMethods);");
+            cb.AppendLine("\t\t}");
+            cb.AppendLine("\t\tprivate static readonly Dictionary<Type, Action<object, FlexSerializer>> SerializeMethods = new Dictionary<Type, Action<object, FlexSerializer>>");
+            cb.AppendLine("\t\t{");
+            cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.GetFullTypeName() + "), " + t.Name + "Serializer.Serialize}")));
+            cb.AppendLine(Environment.NewLine+"\t\t};");
+            cb.AppendLine("\t\tprivate static readonly Dictionary<Type, Func<object, FlexSerializer, object>> DeserializeMethods = new Dictionary<Type, Func<object, FlexSerializer, object>>");
+            cb.AppendLine("\t\t{");
+            cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.GetFullTypeName() + "), " + t.Name + "Serializer.Deserialize}")));
+            cb.AppendLine(Environment.NewLine+"\t\t};");
+            
+            cb.AppendLine("\t}");
+            cb.Append("}");
+            File.WriteAllText(DataPath +"/FlexInitializer.cs", cb.ToString());
         }
 
         private void LoadMetaFiles(string path)
@@ -244,7 +298,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         protected override void OnPreBuild()
         {
-            BuildMetaFiles(DataPath);
+            BuildMetaFiles(SeralizerPath);
         }
 
         protected override string SerializerTypeString => "FlexSerializer";

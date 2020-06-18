@@ -14,16 +14,27 @@ namespace com.Dunkingmachine.BitSerialization
         protected Dictionary<string, Type> DataTypes;
         protected Dictionary<string, Type> InstantiableTypes;
         protected string DataPath;
+        protected string SeralizerPath => DataPath + "/Serializers";
         protected string NameSpace;
         protected readonly List<Type> ProcessedTypes = new List<Type>();
         protected CustomExtension[] CustomExtensions;
         protected bool SerializeNull;
+
+        public virtual void Clear(string path)
+        {
+            foreach (var file in Directory.GetFiles(path+"/Serializers/", "*.cs"))
+            {
+                File.Delete(file);
+            }
+        }
         public void Build(Assembly assembly, string path, string nameSpace, CustomExtension[] customExtensions = null)
         {
             CustomExtensions = customExtensions;
             DataPath = path;
             if (!Directory.Exists(DataPath))
                 Directory.CreateDirectory(DataPath);
+            if (!Directory.Exists(SeralizerPath))
+                Directory.CreateDirectory(SeralizerPath);
             NameSpace = nameSpace;
             Assembly = assembly;
             InstantiableTypes = Assembly.ExportedTypes.Where(t => t.IsInstantiableType() && !t.IsGenericType && !IsNullable(t)).ToDictionary(t => t.GetFullTypeName(), t => t);
@@ -34,17 +45,19 @@ namespace com.Dunkingmachine.BitSerialization
             {
                 CreateSerializerClass(keyValuePair.Value);
             }
+            OnPostBuild();
         }
 
         protected abstract void OnPreBuild();
-        
+
+        protected abstract void OnPostBuild();
         protected void CreateSerializerClass(Type type)
         {
             if (ProcessedTypes.Contains(type))
                 return;
             ProcessedTypes.Add(type);
             var content = CreateClassStringForType(type);
-            File.WriteAllText(DataPath + "/" + type.GetFullTypeName().Replace(".","") + "Serializer.cs", content);
+            File.WriteAllText(SeralizerPath + "/" + type.GetFullTypeName().Replace(".","") + "Serializer.cs", content);
         }
         
         private string CreateClassStringForType(Type type)
@@ -94,8 +107,9 @@ namespace com.Dunkingmachine.BitSerialization
         {
             StringBuilder method = new StringBuilder();
             var fullname = type.GetFullTypeName();
-            method.AppendLine("\t\tpublic static void Serialize("+fullname+" item, "+SerializerTypeString+" serializer)");
+            method.AppendLine("\t\tpublic static void Serialize(object @object, "+SerializerTypeString+" serializer)");
             method.AppendLine("\t\t{");
+            method.AppendLine("\t\t\tvar item = (" + fullname + ")@object;");
             method.Append(CreateSerializationCode(type, members, usings));
             if (extension != null)
                 method.AppendLine(extension.SerializeActions);
