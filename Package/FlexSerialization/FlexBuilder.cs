@@ -62,7 +62,7 @@ namespace com.Dunkingmachine.FlexSerialization
             cb.AppendLine("\t{");
             cb.AppendLine("\t\tpublic static void Initialize()");
             cb.AppendLine("\t\t{");
-            cb.AppendLine("\t\t\tFlexConvert.Initializer.Initialize(SerializeMethods, DeserializeMethods);");
+            cb.AppendLine("\t\t\tFlexConvert.Initializer.Initialize(SerializeMethods, DeserializeMethods, IdTypeMap);");
             cb.AppendLine("\t\t}");
             cb.AppendLine("\t\tprivate static readonly Dictionary<Type, Action<object, FlexSerializer>> SerializeMethods = new Dictionary<Type, Action<object, FlexSerializer>>");
             cb.AppendLine("\t\t{");
@@ -71,6 +71,10 @@ namespace com.Dunkingmachine.FlexSerialization
             cb.AppendLine("\t\tprivate static readonly Dictionary<Type, Func<object, FlexSerializer, object>> DeserializeMethods = new Dictionary<Type, Func<object, FlexSerializer, object>>");
             cb.AppendLine("\t\t{");
             cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.GetFullTypeName() + "), " + t.Name + "Serializer.Deserialize}")));
+            cb.AppendLine(Environment.NewLine+"\t\t};");
+            cb.AppendLine("\t\tprivate static readonly Dictionary<int, Type> IdTypeMap = new Dictionary<int, Type>");
+            cb.AppendLine("\t\t{");
+            cb.Append(string.Join("," + Environment.NewLine, _infos.Where(i => i.Value.Type != null).Select(t => "\t\t\t{"+t.Value.Id+", typeof(" + t.Value.Type.GetFullTypeName() + ")}")));
             cb.AppendLine(Environment.NewLine+"\t\t};");
             
             cb.AppendLine("\t}");
@@ -96,8 +100,8 @@ namespace com.Dunkingmachine.FlexSerialization
             }
         }
 
-        private List<Type> _classInfosToProcess = new List<Type>();
-        private List<Type> _processedClassInfos = new List<Type>();
+        private readonly List<Type> _classInfosToProcess = new List<Type>();
+        private readonly List<Type> _processedClassInfos = new List<Type>();
 
         private void GenerateClassInfos()
         {
@@ -116,12 +120,15 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private void ProcessClassInfos(List<FlexClassInfo> current)
         {
+            var max = _infos.Values.Max(c => c.Id);
             foreach (var info in current)
             {
                 if (_infos.TryGetValue(info.TypeName, out var old))
                     Merge(info, old);
                 _infos[info.TypeName] = info;
                 AssignIds(info);
+                if(info.Id == -1)
+                    info.Id = ++max;
             }
         }
 
@@ -145,6 +152,7 @@ namespace com.Dunkingmachine.FlexSerialization
             }
 
             current.MemberInfos = infos.ToArray();
+            current.Id = old.Id;
         }
 
         private void AssignIds(FlexClassInfo info)
@@ -337,11 +345,11 @@ namespace com.Dunkingmachine.FlexSerialization
                 if (!usings.Contains(mtype.Namespace))
                     usings.Add(mtype.Namespace);
 
-                method.AppendLine("\t\t\tserializer.WriteId(" + memberMeta.MemberId + ");");
+                method.AppendLine("\t\t\tserializer.WriteMemberId(" + memberMeta.MemberId + ");");
                 CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly);
             }
 
-            method.AppendLine("\t\t\tserializer.WriteId(FlexSerializer.EndStructureId);");
+            method.AppendLine("\t\t\tserializer.WriteMemberId(FlexSerializer.EndStructureId);");
             return method.ToString();
         }
 
@@ -426,7 +434,7 @@ namespace com.Dunkingmachine.FlexSerialization
                 throw new FlexException("Somehow no meta file for type " + type.GetFullTypeName() + " was created!");
             usings.Add("com.Dunkingmachine.FlexSerialization");
             var method = new StringBuilder();
-            method.AppendLine("\t\t\tvar id = serializer.ReadId();");
+            method.AppendLine("\t\t\tvar id = serializer.ReadMemberId();");
             method.AppendLine("\t\t\twhile (id != FlexSerializer.EndStructureId)");
             method.AppendLine("\t\t\t{");
             method.AppendLine("\t\t\t\tswitch (id)");
@@ -472,7 +480,7 @@ namespace com.Dunkingmachine.FlexSerialization
             }
 
             method.AppendLine("\t\t\t\t}");
-            method.AppendLine("\t\t\t\tid = serializer.ReadId();");
+            method.AppendLine("\t\t\t\tid = serializer.ReadMemberId();");
             method.AppendLine("\t\t\t}");
             return method.ToString();
         }

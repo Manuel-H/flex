@@ -23,17 +23,28 @@ namespace com.Dunkingmachine.FlexSerialization
         {
             
         }
-        public int ReadId()
+        public int ReadMemberId()
         {
             return (int) ReadUInt(ReadBool() ? 9 : 5);
         }
 
-        public void WriteId(int id)
+        public void WriteMemberId(int id)
         {
             WriteBool(id > 31);
             WriteUInt((uint) id, id > 31 ? 9 : 5);
         }
 
+        public int ReadTypeId()
+        {
+            return (int) ReadUInt(ReadBool() ? 15 : 7);
+        }
+        
+        public void WriteTypeId(int id)
+        {
+            WriteBool(id > 127);
+            WriteUInt((uint) id, id > 127 ? 15 : 7);
+        }
+        
         public int ReadArrayLength()
         {
             if (!ReadBool())

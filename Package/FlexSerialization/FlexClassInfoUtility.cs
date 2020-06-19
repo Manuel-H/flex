@@ -19,10 +19,9 @@ namespace com.Dunkingmachine.FlexSerialization
         {
             var bytes = File.ReadAllBytes(path);
             var serializer = new FlexSerializer(bytes);
-            var classinfo = new FlexClassInfo
-            {
-                TypeName = serializer.ReadString()
-            };
+            var classinfo = new FlexClassInfo();
+            classinfo.TypeName = serializer.ReadString();
+            classinfo.Id = serializer.ReadTypeId();
             classinfo.MemberInfos = new FlexMemberInfo[serializer.ReadArrayLength()];
             for (var i = 0; i < classinfo.MemberInfos.Length; i++)
             {
@@ -37,6 +36,7 @@ namespace com.Dunkingmachine.FlexSerialization
         {
             var serializer = new FlexSerializer();
             serializer.WriteString(info.TypeName);
+            serializer.WriteTypeId(info.Id);
             serializer.WriteArrayLength(info.MemberInfos.Length);
             foreach (var memberInfo in info.MemberInfos)
             {
