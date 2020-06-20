@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace com.Dunkingmachine.Utility
 {
@@ -36,6 +37,19 @@ namespace com.Dunkingmachine.Utility
         public static string GetFullTypeName(this Type type)
         {
             return type?.FullName?.Replace(type.Namespace + ".", "").Replace('+', '.') ?? "Null";
+        }
+
+        public static object GetMemberValue(this MemberInfo info, object instance)
+        {
+            switch (info)
+            {
+                case FieldInfo field:
+                    return field.GetValue(instance);
+                case PropertyInfo property:
+                    return property.GetValue(instance);
+                default:
+                    throw new Exception("Works only for fields and properties!");
+            }
         }
     }
 }

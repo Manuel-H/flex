@@ -14,6 +14,7 @@ namespace com.Dunkingmachine.FlexSerialization
         private const string MetaFileExtension = "flexmeta";
         private const string BuiltinNamespace = "com.Dunkingmachine.FlexSerialization";
         private Dictionary<string, FlexClassInfo> _infos = new Dictionary<string, FlexClassInfo>();
+        public bool StripDefaultValues { get; set; }
 
         private void BuildMetaFiles(string path)
         {
@@ -319,6 +320,9 @@ namespace com.Dunkingmachine.FlexSerialization
             if (!_infos.TryGetValue(type.GetFullTypeName(), out var meta))
                 throw new FlexException("Somehow no meta file for type " + type.GetFullTypeName() + " was created!");
             var method = new StringBuilder();
+            object instance = null;
+            if (StripDefaultValues)
+                instance = Activator.CreateInstance(type);
             foreach (var memberInfo in members)
             {
                 if (memberInfo.MemberType != MemberTypes.Field && memberInfo.MemberType != MemberTypes.Property)
@@ -346,7 +350,7 @@ namespace com.Dunkingmachine.FlexSerialization
                     usings.Add(mtype.Namespace);
 
                 
-                CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly, addMemberId:true);
+                CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly, addMemberId:true, instance: StripDefaultValues? instance : null);
             }
 
             method.AppendLine("\t\t\tserializer.WriteMemberId(FlexSerializer.EndStructureId);");
@@ -354,14 +358,26 @@ namespace com.Dunkingmachine.FlexSerialization
         }
 
         private void CreateReading(StringBuilder method, List<string> usings, MemberInfo memberInfo, FlexMemberInfo info, Type mtype, string access,
-            string indents = "\t\t\t", bool createClass = true, bool addMemberId = false)
+            string indents = "\t\t\t", bool createClass = true, bool addMemberId = false, object instance = null)
         {
             if (mtype.IsScalarType())
             {
+                bool stripCheck = StripDefaultValues && instance != null;
+                var cIndents = indents;
+                if (stripCheck)
+                {
+                    method.AppendLine(indents + "if (" + GetCompareString(access, memberInfo.GetMemberValue(instance), mtype) + ")");
+                    method.AppendLine(indents + "{");
+                    cIndents += "\t";
+                }
                 if(addMemberId)
-                    method.AppendLine("\t\t\tserializer.WriteMemberId(" + info.MemberId + ");");
+                    method.AppendLine(cIndents+"serializer.WriteMemberId(" + info.MemberId + ");");
                 var detail = (FlexScalarDetail) ((info as FlexSimpleTypeInfo)?.Detail ?? ((FlexArrayInfo) info).Detail);
-                method.AppendLine(indents + GetWriteString(detail, access) + ";");
+                method.AppendLine(cIndents + GetWriteString(detail, access) + ";");
+                if (stripCheck)
+                {
+                    method.AppendLine(indents + "}");
+                }
             }
             else if (mtype.IsArray || (mtype.IsGenericType && mtype.GetGenericTypeDefinition() == typeof(List<>)))
             {
@@ -439,6 +455,19 @@ namespace com.Dunkingmachine.FlexSerialization
             }
         }
 
+        private static string GetCompareString(string access, object value, Type type)
+        {
+            if (value is string s)
+                return access + " != \"" + s + "\"";
+            if (value is bool b)
+                return (b ? "" : "!")+access;
+            if (value is Enum e)
+            {
+                return access + " != (" + type.GetFullTypeName() + ")" + Convert.ChangeType(e, e.GetTypeCode());
+            }
+
+            return access + " != " + (value?.ToString()??"null");
+        }
         protected override string CreateDeserializationCode(Type type, MemberInfo[] members, List<string> usings)
         {
             if (!_infos.TryGetValue(type.GetFullTypeName(), out var meta))
