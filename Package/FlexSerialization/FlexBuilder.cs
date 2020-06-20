@@ -120,7 +120,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private void ProcessClassInfos(List<FlexClassInfo> current)
         {
-            var max = _infos.Values.Max(c => c.Id);
+            var max = _infos.Values.Count > 0 ? _infos.Values.Max(c => c.Id):-1;
             foreach (var info in current)
             {
                 if (_infos.TryGetValue(info.TypeName, out var old))
@@ -501,7 +501,7 @@ namespace com.Dunkingmachine.FlexSerialization
             switch (detail)
             {
                 case FlexObjectDetail flexObjectDetail:
-                    CreateObjectAssignments(method, "<deleted field>", "{0}", "null", indents, flexObjectDetail,
+                    CreateObjectAssignments(method, null, "{0}", "null", indents, flexObjectDetail,
                         InstantiableTypes.Where(kvp => flexObjectDetail.AssignableTypes.Contains(kvp.Key)).Select(kvp => kvp.Value).ToList(), false);
                     break;
                 case FlexScalarDetail flexScalarDetail:
@@ -558,23 +558,23 @@ namespace com.Dunkingmachine.FlexSerialization
                 if (((mtype.IsClass && !mtype.IsAbstract) || mtype.IsValueType) && !mtype.IsGenericType && !IsNullable(mtype) && !subclasses.Contains(mtype))
                     subclasses.Insert(0, mtype);
                 var detail = (FlexObjectDetail) ((info as FlexSimpleTypeInfo)?.Detail ?? ((FlexArrayInfo) info).Detail);
-                CreateObjectAssignments(method, mtype.Name, assignment, access, indents, detail, subclasses);
+                CreateObjectAssignments(method, mtype, assignment, access, indents, detail, subclasses);
             }
         }
 
-        private void CreateObjectAssignments(StringBuilder method, string mtypename, string assignment, string access, string indents, FlexObjectDetail detail,
+        private void CreateObjectAssignments(StringBuilder method, Type mtype, string assignment, string access, string indents, FlexObjectDetail detail,
             List<Type> subclasses, bool handleNull = true)
         {
             if (detail.AssignableTypes.Length == 0)
             {
-                Logger.LogError("No instantiable types found for base class " + mtypename);
+                Logger.LogError("No instantiable types found for base class " + (mtype?.Name??"<deleted field>"));
                 return;
             }
 
 
             method.AppendLine(indents + "switch(serializer.ReadTypeIndex())");
             method.AppendLine(indents + "{");
-            if (!mtype.IsValueType) // null handling not allowed for structs
+            if (!((mtype??subclasses[0]).IsValueType)) // null handling not allowed for structs
             {
                 method.AppendLine(indents + "\tcase " + 0 + ":");
                 if (handleNull)
@@ -604,14 +604,14 @@ namespace com.Dunkingmachine.FlexSerialization
             if (subclass != null)
             {
                 CreateSerializerClass(subclass);
-                method.AppendLine(indents + string.Format(assignment,
+                method.AppendLine(indents + string.Format(assignment,(subclass.IsValueType ? "("+subclass.GetFullTypeName()+")":"")+
                     subclass.GetFullTypeName().Replace(".", "") + "Serializer.Deserialize(" + access + ", serializer)") + ";");
             }
             else if (_infos.TryGetValue(detail.AssignableTypes[i], out var subclassInfo) && subclassInfo.Type != null)
             {
                 //no longer assignable? just deserialize the type without assigning to forward the serializer
                 CreateSerializerClass(subclassInfo.Type);
-                method.AppendLine(indents + subclassInfo.TypeName.Replace(".", "") + "Serializer.Deserialize(" + access + ", serializer)" + ";");
+                method.AppendLine(indents + (subclassInfo.Type.IsValueType ? "("+subclassInfo.Type.GetFullTypeName()+")":"") + subclassInfo.TypeName.Replace(".", "")+ "Serializer.Deserialize(" + access + ", serializer)" + ";");
             }
             else
             {

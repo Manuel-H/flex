@@ -91,7 +91,7 @@ namespace com.Dunkingmachine.BitSerialization
             cb.AppendLine();
             cb.AppendLine("namespace "+NameSpace);
             cb.AppendLine("{");
-            cb.AppendLine("\tpublic static class " + type.Name + "Serializer");
+            cb.AppendLine("\tpublic static class " +type.GetFullTypeName() + "Serializer");
             cb.AppendLine("\t{");
             if (extension != null)
                 cb.AppendLine(extension.Fields);
@@ -124,9 +124,17 @@ namespace com.Dunkingmachine.BitSerialization
         {
             StringBuilder method = new StringBuilder();
             var fullname = type.GetFullTypeName();
-            method.AppendLine("\t\tpublic static " + fullname + " Deserialize(object @default, "+SerializerTypeString+" serializer)");
+            method.AppendLine("\t\tpublic static " + (type.IsValueType ? "object" : fullname) + " Deserialize(object @default, "+SerializerTypeString+" serializer)");
             method.AppendLine("\t\t{");
-            method.AppendLine("\t\t\tvar item = "+ (type.IsValueType ? "" :("@default as "+fullname+" ?? "))+"new " + fullname + "();");
+            if (type.IsValueType)
+            {
+                method.AppendLine("\t\t\tif (!(@default is "+fullname+" item))");
+                method.AppendLine("\t\t\t\titem = new  "+ fullname + "();");
+            }
+            else
+            {
+                method.AppendLine("\t\t\tvar item = @default as "+fullname+" ?? new " + fullname + "();");
+            }
             method.Append(CreateDeserializationCode(type, members, usings));
             if (extension != null)
                 method.AppendLine(extension.DeserializeActions);
