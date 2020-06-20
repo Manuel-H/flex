@@ -281,7 +281,7 @@ namespace com.Dunkingmachine.BitSerialization
             return (byte) _buffer.Read(8);
         }
 
-        public void WriteByite(byte value)
+        public void WriteByte(byte value)
         {
             _buffer.Write(value, 8);
         }

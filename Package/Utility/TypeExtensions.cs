@@ -38,6 +38,11 @@ namespace com.Dunkingmachine.Utility
         {
             return type?.FullName?.Replace(type.Namespace + ".", "").Replace('+', '.') ?? "Null";
         }
+
+        public static string GetFullExtendedTypename(this Type type)
+        {
+            return type?.FullName?.Replace('+', '.') ?? "Null";
+        }
         
         public static string GetFullCleanTypeName(this Type type)
         {
