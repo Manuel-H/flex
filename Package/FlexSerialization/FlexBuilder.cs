@@ -44,11 +44,11 @@ namespace com.Dunkingmachine.FlexSerialization
             //namespace will only exist if classes are built
             if(types.Count > 0)
                 usings.Add(NameSpace);
-            foreach (var type in types)
-            {
-                if(!usings.Contains(type.Namespace))
-                    usings.Add(type.Namespace);
-            }
+            // foreach (var type in types)
+            // {
+            //     if(!usings.Contains(type.Namespace))
+            //         usings.Add(type.Namespace);
+            // }
             foreach (var @using in usings)
             {
                 cb.AppendLine("using " + @using + ";");
@@ -67,15 +67,15 @@ namespace com.Dunkingmachine.FlexSerialization
             cb.AppendLine("\t\t}");
             cb.AppendLine("\t\tprivate static readonly Dictionary<Type, Action<object, FlexSerializer>> SerializeMethods = new Dictionary<Type, Action<object, FlexSerializer>>");
             cb.AppendLine("\t\t{");
-            cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.GetFullTypeName() + "), " + t.Name + "Serializer.Serialize}")));
+            cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.FullName + "), " + t.GetFullCleanTypeName() + "Serializer.Serialize}")));
             cb.AppendLine(Environment.NewLine+"\t\t};");
             cb.AppendLine("\t\tprivate static readonly Dictionary<Type, Func<object, FlexSerializer, object>> DeserializeMethods = new Dictionary<Type, Func<object, FlexSerializer, object>>");
             cb.AppendLine("\t\t{");
-            cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.GetFullTypeName() + "), " + t.Name + "Serializer.Deserialize}")));
+            cb.Append(string.Join("," + Environment.NewLine, types.Select(t => "\t\t\t{typeof(" + t.FullName + "), " + t.GetFullCleanTypeName() + "Serializer.Deserialize}")));
             cb.AppendLine(Environment.NewLine+"\t\t};");
             cb.AppendLine("\t\tprivate static readonly Dictionary<int, Type> IdTypeMap = new Dictionary<int, Type>");
             cb.AppendLine("\t\t{");
-            cb.Append(string.Join("," + Environment.NewLine, _infos.Where(i => i.Value.Type != null).Select(t => "\t\t\t{"+t.Value.Id+", typeof(" + t.Value.Type.GetFullTypeName() + ")}")));
+            cb.Append(string.Join("," + Environment.NewLine, _infos.Where(i => i.Value.Type != null).Select(t => "\t\t\t{"+t.Value.Id+", typeof(" + t.Value.Type.FullName + ")}")));
             cb.AppendLine(Environment.NewLine+"\t\t};");
             
             cb.AppendLine("\t}");
@@ -171,7 +171,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
         private FlexClassInfo GenerateClassInfo(Type type)
         {
-            var info = new FlexClassInfo {TypeName = type.GetFullTypeName(), Type = type};
+            var info = new FlexClassInfo {TypeName = type.FullName, Type = type};
             var members = type.GetMembers(BindingFlags.Public | BindingFlags.Instance);
             var minfos = new List<FlexMemberInfo>();
             foreach (var memberInfo in members)
@@ -245,12 +245,12 @@ namespace com.Dunkingmachine.FlexSerialization
                 };
             }
 
-            throw new FlexException("Type not supported: " + mtype.GetFullTypeName());
+            throw new FlexException("Type not supported: " + mtype.GetExtendedTypeName());
         }
 
         private string[] GetAssignableTypeStrings(Type type)
         {
-            return GetAssignableTypes(type).Select(t => t.GetFullTypeName()).ToArray();
+            return GetAssignableTypes(type).Select(t => t.FullName).ToArray();
         }
 
         private List<Type> GetAssignableTypes(Type mtype)
@@ -317,8 +317,8 @@ namespace com.Dunkingmachine.FlexSerialization
 
         protected override string CreateSerializationCode(Type type, MemberInfo[] members, List<string> usings)
         {
-            if (!_infos.TryGetValue(type.GetFullTypeName(), out var meta))
-                throw new FlexException("Somehow no meta file for type " + type.GetFullTypeName() + " was created!");
+            if (!_infos.TryGetValue(type.FullName, out var meta))
+                throw new FlexException("Somehow no meta file for type " + type.GetExtendedTypeName() + " was created!");
             var method = new StringBuilder();
             object instance = null;
             if (StripDefaultValues)
@@ -342,7 +342,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
                 var memberMeta = meta.MemberInfos.FirstOrDefault(m => m.MemberName == memberInfo.Name);
                 if (memberMeta == null)
-                    throw new FlexException("Somehow no meta info for member " + memberInfo.Name + " in type " + type.GetFullTypeName() + " was created!");
+                    throw new FlexException("Somehow no meta info for member " + memberInfo.Name + " in type " + type.GetExtendedTypeName() + " was created!");
 
                 var mtype = (memberInfo as FieldInfo)?.FieldType ?? ((PropertyInfo) memberInfo).PropertyType;
 
@@ -463,15 +463,15 @@ namespace com.Dunkingmachine.FlexSerialization
                 return (b ? "" : "!")+access;
             if (value is Enum e)
             {
-                return access + " != (" + type.GetFullTypeName() + ")" + Convert.ChangeType(e, e.GetTypeCode());
+                return access + " != (" + type.GetExtendedTypeName() + ")" + Convert.ChangeType(e, e.GetTypeCode());
             }
 
             return access + " != " + (value?.ToString()??"null");
         }
         protected override string CreateDeserializationCode(Type type, MemberInfo[] members, List<string> usings)
         {
-            if (!_infos.TryGetValue(type.GetFullTypeName(), out var meta))
-                throw new FlexException("Somehow no meta file for type " + type.GetFullTypeName() + " was created!");
+            if (!_infos.TryGetValue(type.FullName, out var meta))
+                throw new FlexException("Somehow no meta file for type " + type.GetExtendedTypeName() + " was created!");
             usings.Add("com.Dunkingmachine.FlexSerialization");
             var method = new StringBuilder();
             method.AppendLine("\t\t\tvar id = serializer.ReadMemberId();");
@@ -565,8 +565,8 @@ namespace com.Dunkingmachine.FlexSerialization
 
                 method.AppendLine(indents + "var list" + memberInfo.Name + " = " + string.Format(assignment,
                     "new " + (mtype.IsArray
-                        ? etype.GetFullTypeName() + "[aLength" + memberInfo.Name + "]"
-                        : "List<" + etype.GetFullTypeName() + ">(aLength" + memberInfo.Name + ")") + ";"));
+                        ? etype.GetExtendedTypeName() + "[aLength" + memberInfo.Name + "]"
+                        : "List<" + etype.GetExtendedTypeName() + ">(aLength" + memberInfo.Name + ")") + ";"));
                 method.AppendLine(indents + "for (var i = 0; i < aLength" + memberInfo.Name + "; i++)");
                 method.AppendLine(indents + "{");
                 CreateAssignment(method, usings, memberInfo, etype,
@@ -629,18 +629,18 @@ namespace com.Dunkingmachine.FlexSerialization
         private void CreateObjectAssignment(StringBuilder method, string assignment, string access, string indents, List<Type> subclasses,
             FlexObjectDetail detail, int i)
         {
-            var subclass = subclasses.Find(t => t.GetFullTypeName() == detail.AssignableTypes[i]);
+            var subclass = subclasses.Find(t => t.FullName == detail.AssignableTypes[i]);
             if (subclass != null)
             {
                 CreateSerializerClass(subclass);
-                method.AppendLine(indents + string.Format(assignment,(subclass.IsValueType ? "("+subclass.GetFullTypeName()+")":"")+
-                    subclass.GetFullTypeName().Replace(".", "") + "Serializer.Deserialize(" + access + ", serializer)") + ";");
+                method.AppendLine(indents + string.Format(assignment,(subclass.IsValueType ? "("+subclass.GetExtendedTypeName()+")":"")+
+                    subclass.GetFullCleanTypeName().Replace(".", "") + "Serializer.Deserialize(" + access + ", serializer)") + ";");
             }
             else if (_infos.TryGetValue(detail.AssignableTypes[i], out var subclassInfo) && subclassInfo.Type != null)
             {
                 //no longer assignable? just deserialize the type without assigning to forward the serializer
                 CreateSerializerClass(subclassInfo.Type);
-                method.AppendLine(indents + (subclassInfo.Type.IsValueType ? "("+subclassInfo.Type.GetFullTypeName()+")":"") + subclassInfo.TypeName.Replace(".", "")+ "Serializer.Deserialize(" + access + ", serializer)" + ";");
+                method.AppendLine(indents + (subclassInfo.Type.IsValueType ? "("+subclassInfo.Type.GetExtendedTypeName()+")":"") + subclassInfo.TypeName.Replace(".", "")+ "Serializer.Deserialize(" + access + ", serializer)" + ";");
             }
             else
             {

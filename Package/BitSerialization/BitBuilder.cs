@@ -37,9 +37,9 @@ namespace com.Dunkingmachine.BitSerialization
                 Directory.CreateDirectory(SeralizerPath);
             NameSpace = nameSpace;
             Assembly = assembly;
-            InstantiableTypes = Assembly.ExportedTypes.Where(t => t.IsInstantiableType() && !t.IsGenericType && !IsNullable(t)).ToDictionary(t => t.GetFullTypeName(), t => t);
+            InstantiableTypes = Assembly.ExportedTypes.Where(t => t.IsInstantiableType() && !t.IsGenericType && !IsNullable(t)).ToDictionary(t => t.FullName, t => t);
             var markedTypes = Assembly.ExportedTypes.Where(t => t.GetCustomAttribute<T>() != null);
-            DataTypes = Assembly.ExportedTypes.Where(t => t.IsInstantiableType() && markedTypes.Any(t2 => t2.IsAssignableFrom(t))).ToDictionary(t => t.GetFullTypeName(), t => t);
+            DataTypes = Assembly.ExportedTypes.Where(t => t.IsInstantiableType() && markedTypes.Any(t2 => t2.IsAssignableFrom(t))).ToDictionary(t => t.FullName, t => t);
             OnPreBuild();
             foreach (var keyValuePair in DataTypes)
             {
@@ -57,7 +57,7 @@ namespace com.Dunkingmachine.BitSerialization
                 return;
             ProcessedTypes.Add(type);
             var content = CreateClassStringForType(type);
-            File.WriteAllText(SeralizerPath + "/" + type.GetFullTypeName().Replace(".","") + "Serializer.cs", content);
+            File.WriteAllText(SeralizerPath + "/" + type.FullName.Replace(".","") + "Serializer.cs", content);
         }
         
         private string CreateClassStringForType(Type type)
@@ -91,7 +91,7 @@ namespace com.Dunkingmachine.BitSerialization
             cb.AppendLine();
             cb.AppendLine("namespace "+NameSpace);
             cb.AppendLine("{");
-            cb.AppendLine("\tpublic static class " +type.GetFullTypeName() + "Serializer");
+            cb.AppendLine("\tpublic static class " +type.GetFullCleanTypeName() + "Serializer");
             cb.AppendLine("\t{");
             if (extension != null)
                 cb.AppendLine(extension.Fields);
@@ -106,7 +106,7 @@ namespace com.Dunkingmachine.BitSerialization
         private string CreateSerializationMethod(Type type, MemberInfo[] members, CustomExtension extension, List<string> usings)
         {
             StringBuilder method = new StringBuilder();
-            var fullname = type.GetFullTypeName();
+            var fullname = type.GetExtendedTypeName();
             method.AppendLine("\t\tpublic static void Serialize(object @object, "+SerializerTypeString+" serializer)");
             method.AppendLine("\t\t{");
             method.AppendLine("\t\t\tvar item = (" + fullname + ")@object;");
@@ -123,7 +123,7 @@ namespace com.Dunkingmachine.BitSerialization
         private string CreateDeserializationMethod(Type type, MemberInfo[] members, CustomExtension extension, List<string> usings)
         {
             StringBuilder method = new StringBuilder();
-            var fullname = type.GetFullTypeName();
+            var fullname = type.GetExtendedTypeName();
             method.AppendLine("\t\tpublic static " + (type.IsValueType ? "object" : fullname) + " Deserialize(object @default, "+SerializerTypeString+" serializer)");
             method.AppendLine("\t\t{");
             if (type.IsValueType)

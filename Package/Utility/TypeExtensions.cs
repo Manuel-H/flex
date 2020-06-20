@@ -34,9 +34,14 @@ namespace com.Dunkingmachine.Utility
             return type.GetElementType() ?? type.GetGenericArguments()[0];
         }
         
-        public static string GetFullTypeName(this Type type)
+        public static string GetExtendedTypeName(this Type type)
         {
             return type?.FullName?.Replace(type.Namespace + ".", "").Replace('+', '.') ?? "Null";
+        }
+        
+        public static string GetFullCleanTypeName(this Type type)
+        {
+            return type?.FullName?.Replace('+', '.').Replace(".","") ?? "Null";
         }
 
         public static object GetMemberValue(this MemberInfo info, object instance)
