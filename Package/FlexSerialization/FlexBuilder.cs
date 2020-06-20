@@ -345,8 +345,8 @@ namespace com.Dunkingmachine.FlexSerialization
                 if (!usings.Contains(mtype.Namespace))
                     usings.Add(mtype.Namespace);
 
-                method.AppendLine("\t\t\tserializer.WriteMemberId(" + memberMeta.MemberId + ");");
-                CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly);
+                
+                CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly, addMemberId:true);
             }
 
             method.AppendLine("\t\t\tserializer.WriteMemberId(FlexSerializer.EndStructureId);");
@@ -354,10 +354,12 @@ namespace com.Dunkingmachine.FlexSerialization
         }
 
         private void CreateReading(StringBuilder method, List<string> usings, MemberInfo memberInfo, FlexMemberInfo info, Type mtype, string access,
-            string indents = "\t\t\t", bool createClass = true)
+            string indents = "\t\t\t", bool createClass = true, bool addMemberId = false)
         {
             if (mtype.IsScalarType())
             {
+                if(addMemberId)
+                    method.AppendLine("\t\t\tserializer.WriteMemberId(" + info.MemberId + ");");
                 var detail = (FlexScalarDetail) ((info as FlexSimpleTypeInfo)?.Detail ?? ((FlexArrayInfo) info).Detail);
                 method.AppendLine(indents + GetWriteString(detail, access) + ";");
             }
@@ -367,10 +369,14 @@ namespace com.Dunkingmachine.FlexSerialization
                 ;
                 if (!usings.Contains(etype.Namespace))
                     usings.Add(etype.Namespace);
-                method.AppendLine(indents + "serializer.WriteArrayLength(" + access + (mtype.IsArray ? ".Length" : ".Count") + ");");
-                method.AppendLine(indents + "for (var i = 0; i < " + access + (mtype.IsArray ? ".Length" : ".Count") + "; i++)");
+                method.AppendLine(indents + "if (" + access + " != null)");
                 method.AppendLine(indents + "{");
-                CreateReading(method, usings, memberInfo, info, etype, access + "[i]", indents + "\t", createClass);
+                method.AppendLine(indents + "\tserializer.WriteMemberId(" + info.MemberId + ");");
+                method.AppendLine(indents + "\tserializer.WriteArrayLength(" + access + (mtype.IsArray ? ".Length" : ".Count") + ");");
+                method.AppendLine(indents + "\tfor (var i = 0; i < " + access + (mtype.IsArray ? ".Length" : ".Count") + "; i++)");
+                method.AppendLine(indents + "\t{");
+                CreateReading(method, usings, memberInfo, info, etype, access + "[i]", indents + "\t\t", createClass);
+                method.AppendLine(indents + "\t}");
                 method.AppendLine(indents + "}");
             }
             else if (mtype.IsDictionary())
@@ -394,29 +400,34 @@ namespace com.Dunkingmachine.FlexSerialization
 
                 if (!mtype.IsValueType)
                 {
-                    method.AppendLine(indents + "if (" + access + " == null)");
-                    method.AppendLine(indents + "\tserializer.WriteTypeIndex(0);");
-                    method.AppendLine(indents + "else");
+                    method.AppendLine(indents + "if (" + access + " != null)");
+                    // method.AppendLine(indents + "{");
+                    // method.AppendLine(indents+"\tserializer.WriteMemberId(" + info.MemberId + ");");
+                    // method.AppendLine(indents + "if (" + access + " == null)");
+                    // method.AppendLine(indents + "\tserializer.WriteTypeIndex(0);");
+                    // method.AppendLine(indents + "else");
                 }
 
                 method.AppendLine(indents + "{");
+                if(addMemberId)
+                    method.AppendLine(indents+"\tserializer.WriteMemberId(" + info.MemberId + ");");
                 if (detail.AssignableTypes.Length > 1)
                 {
-                    method.AppendLine(indents + "switch(" + access + ")");
-                    method.AppendLine(indents + "{");
+                    method.AppendLine(indents + "\tswitch(" + access + ")");
+                    method.AppendLine(indents + "\t{");
                     for (var i = 0; i < detail.AssignableTypes.Length; i++)
                     {
-                        method.AppendLine(indents + "\tcase " + detail.AssignableTypes[i] + ":");
-                        method.AppendLine(indents + "\t\tserializer.WriteTypeIndex(" + (i + 1) + ");");
+                        method.AppendLine(indents + "\t\tcase " + detail.AssignableTypes[i] + ":");
+                        method.AppendLine(indents + "\t\t\tserializer.WriteTypeIndex(" + (i + 1) + ");");
 
-                        method.AppendLine(indents + "\t\t" + detail.AssignableTypes[i].Replace(".", "") + "Serializer.Serialize(" + access + ", serializer);");
-                        method.AppendLine(indents + "\t\tbreak;");
+                        method.AppendLine(indents + "\t\t\t" + detail.AssignableTypes[i].Replace(".", "") + "Serializer.Serialize(" + access + ", serializer);");
+                        method.AppendLine(indents + "\t\t\tbreak;");
                     }
 
-                    method.AppendLine(indents + "\tdefault:");
-                    method.AppendLine(indents + "\t\tthrow new Exception(\"No serializer for \" + t" + memberInfo.Name + "+ \" created!\");" +
+                    method.AppendLine(indents + "\t\tdefault:");
+                    method.AppendLine(indents + "\t\t\tthrow new Exception(\"No serializer for \" + t" + memberInfo.Name + "+ \" created!\");" +
                                       Environment.NewLine);
-                    method.AppendLine(indents + "}");
+                    method.AppendLine(indents + "\t}");
                 }
                 else
                 {
@@ -563,12 +574,16 @@ namespace com.Dunkingmachine.FlexSerialization
 
             method.AppendLine(indents + "switch(serializer.ReadTypeIndex())");
             method.AppendLine(indents + "{");
-            method.AppendLine(indents + "\tcase " + 0 + ":");
-            if (handleNull)
+            if (!mtype.IsValueType) // null handling not allowed for structs
             {
-                method.AppendLine(indents + "\t\t" + string.Format(assignment, "null") + ";");
+                method.AppendLine(indents + "\tcase " + 0 + ":");
+                if (handleNull)
+                {
+                    method.AppendLine(indents + "\t\t" + string.Format(assignment, "null") + ";");
+                }
+                method.AppendLine(indents + "\t\tcontinue;");
             }
-            method.AppendLine(indents + "\t\tcontinue;");
+
             for (var i = 0; i < detail.AssignableTypes.Length; i++)
             {
                 method.AppendLine(indents + "\tcase " + (i + 1) + ":");

@@ -260,7 +260,7 @@ namespace com.Dunkingmachine.BitSerialization
             return _buffer.Read(bits);
         }
 
-        public void Write(uint value, int bits)
+        public void Write(ulong value, int bits)
         {
             _buffer.Write(value,bits);
         }
