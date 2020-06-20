@@ -1,0 +1,13 @@
+{
+  "name": "com.dunkingmachine.bitserialization",
+  "version": "0.0.1",
+  "displayName": "Bit Serializer",
+  "description": "Serializes Bits",
+  "keywords": [],
+  "author": {
+    "name": "Dunkingmachine",
+    "email": "contact.dunkingmachine@gmail.com"
+  },
+  "hideInEditor": false,
+  "type": "library"
+}
