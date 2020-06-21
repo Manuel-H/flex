@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using com.Dunkingmachine.BitSerialization;
 using NUnit.Framework;
+using UnityEditor;
 using Debug = UnityEngine.Debug;
 using Random = UnityEngine.Random;
 
@@ -146,6 +147,36 @@ namespace MyPackages.BitSerialization.Tests
             Assert.AreEqual("9SD)=js5adf09ü'*df0ß", serializer.ReadString());
         }
 
+        [Test, MenuItem("BitserializerTest/TestStringPerformance")]
+        public static void TestStringPerformance()
+        {
+            StringPerformance("9SD)=js5adf09ü'*df0ß9SD)=js5adf0There once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.9ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adThere once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.f09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß");
+        }
+
+        private static void StringPerformance(string teststring)
+        {
+            var sw = new Stopwatch();
+            var serializer = new BitSerializer();
+            sw.Start();
+            for (int i = 0; i < 1000; i++)
+            {
+                serializer.WriteString(teststring);
+            }
+            sw.Stop();
+            var bytes = serializer.GetBytes();
+            Debug.Log("Flex: "+bytes.Length+" bytes | "+sw.ElapsedMilliseconds+" ms");
+            double length = bytes.Length;
+            serializer = new BitSerializer();
+            sw.Restart();
+            for (int i = 0; i < 1000; i++)
+            {
+                serializer.WriteString(teststring, true);
+            }
+            sw.Stop();
+            bytes = serializer.GetBytes();
+            Debug.Log("Utf8: "+bytes.Length+" bytes | "+sw.ElapsedMilliseconds+" ms");
+            Debug.Log("Compression: "+(1-length/bytes.Length).ToString("P1"));
+        }
         [Test]
         public void TextMixedSerialization()
         {
