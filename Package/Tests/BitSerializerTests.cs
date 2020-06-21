@@ -150,7 +150,7 @@ namespace MyPackages.BitSerialization.Tests
         [Test, MenuItem("BitserializerTest/TestStringPerformance")]
         public static void TestStringPerformance()
         {
-            StringPerformance("9SD)=js5adf09ü'*df0ß9SD)=js5adf0There once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.9ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adThere once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.f09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß9SD)=js5adf09ü'*df0ß");
+            StringPerformance("smallsrtirgn304941");
         }
 
         private static void StringPerformance(string teststring)
@@ -158,7 +158,7 @@ namespace MyPackages.BitSerialization.Tests
             var sw = new Stopwatch();
             var serializer = new BitSerializer();
             sw.Start();
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 10000; i++)
             {
                 serializer.WriteString(teststring);
             }
@@ -168,7 +168,7 @@ namespace MyPackages.BitSerialization.Tests
             double length = bytes.Length;
             serializer = new BitSerializer();
             sw.Restart();
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 10000; i++)
             {
                 serializer.WriteString(teststring, true);
             }

@@ -35,15 +35,7 @@ namespace com.Dunkingmachine.Utility
                     {
                         new EncodingSet(ind++, 6, "qwertzuiopasdfghjklyxcvbnmQWERTZUIOPASDFGHJKLYXCVBNM ,.-'!?\":)(+"), //mixed case sentence
                     }
-                },
-                // new EncodingLevel
-                // {
-                //     Sets = new[]
-                //     {
-                //         new EncodingSet(ind++, 7,
-                //             "qwertzuiopasdfghjklyxcvbnmQWERTZUIOPASDFGHJKLYXCVBNM0123456789,.-;:_/*-+#~'!?`´<>\"°$@&%$()[]|{}€°^\\ßíóéáñúüöäàèêçôùâûîòìóœïëæ π="),
-                //     }
-                // },
+                }
             };
             _levelsB = new[]
                 {
@@ -68,10 +60,34 @@ namespace com.Dunkingmachine.Utility
                             new EncodingSet(ind++, 6, "qwertzuiopasdfghjklyxcvbnmQWERTZUIOPASDFGHJKLYXCVBNM0123456789_."), //mixed case keys
                         }
                     },
+                    
+                    new EncodingLevel
+                    {
+                        Sets = new[]
+                        {
+                            new EncodingSet(ind++, 7,
+                                "qwertzuiopasdfghjklyxcvbnmQWERTZUIOPASDFGHJKLYXCVBNM0123456789,.-;:_/*-+#~'!?`´<>\"°$@&%$()[]|{}°^\\ßíóéáñúüöäàèêçôùâûîòìóœïëæ =¿¡"),
+                        }
+                    },
                 };
+            _seenCacheSize = _levelsA.Concat(_levelsB).Max(l => l.Sets.Max(s => s.MaxChar))+1;
+            _seenCharCache = new bool[_seenCacheSize];
         }
-        
-        private HashSet<char> _seenCharCache = new HashSet<char>(CharEqualityComparer.Instance);
+
+        private void ClearSeenCache()
+        {
+            // for (var i = 0; i < _maxSeenChar+1; i++)
+            // {
+            //     _seenCharCache[i] = false;
+            // }
+
+            Array.Clear(_seenCharCache, 0, _maxSeenChar+1);
+            _maxSeenChar = 50;
+        }
+
+        private readonly bool[] _seenCharCache;
+        private readonly int _seenCacheSize;
+        private int _maxSeenChar = 50;
         public EncodingSet GetEncodingSet(char[] chars)
         {
             int levelAIndex = 0;
@@ -80,12 +96,16 @@ namespace com.Dunkingmachine.Utility
             var levelB = _levelsB[levelBIndex];
             levelA.Reset();
             levelB.Reset();
-            _seenCharCache.Clear();
+            ClearSeenCache();
             foreach (var c in chars)
             {
-                if(_seenCharCache.Contains(c))
+                if (c >= _seenCacheSize)
+                    return null;
+                if (_seenCharCache[c])
                     continue;
-                _seenCharCache.Add(c);
+                if (c > _maxSeenChar)
+                    _maxSeenChar = c;
+                _seenCharCache[c] = true;
                 while (levelA != null && !levelA.Matches(c))
                 {
                     if (levelAIndex >= _levelsA.Length)
@@ -187,7 +207,7 @@ namespace com.Dunkingmachine.Utility
             {
                 if (!set.Valid)
                     continue;
-                if (set.SetString.IndexOf(c) > -1)
+                if (c <= set.MaxChar && set.CharContains[c])
                     valid = true;
                 else set.Valid = false;
             }
@@ -205,31 +225,33 @@ namespace com.Dunkingmachine.Utility
             if(setString.Length != (1 << bits))
                 throw new Exception("string has "+setString.Length+" chars but should have "+(1<<bits));
             Index = index;
-            Bits = bits;
-            SetString = setString;
-            BytesByChar = new Dictionary<char, byte>(setString.Length, CharEqualityComparer.Instance);
-            CharsByByte = new Dictionary<byte, char>(setString.Length);
-            var array = setString.ToCharArray();
-            for (byte i = 0; i < array.Length; i++)
+            _bits = bits;
+            _chars = setString.ToCharArray();
+            MaxChar = _chars.Max();
+            CharContains = new bool[MaxChar+1];
+            _bytes = new byte[MaxChar+1];
+            for (byte i = 0; i < _chars.Length; i++)
             {
-                BytesByChar[array[i]] = i;
-                CharsByByte[i] = array[i];
+                var c = _chars[i];
+                CharContains[c] = true;
+                _bytes[c] = i;
             }
         }
-
-        public bool NeedReset;
+        
         public bool Valid;
-        public int Index;
-        public int Bits;
-        public Dictionary<char, byte> BytesByChar;
-        public Dictionary<byte, char> CharsByByte;
-        public string SetString;
+        public readonly int Index;
+        private readonly int _bits;
+        private readonly char[] _chars;
+        private readonly byte[] _bytes;
+
+        public readonly bool[] CharContains;
+        public readonly int MaxChar;
 
         public void Encode(BitBuffer ser, char[] chars)
         {
             foreach (var c in chars)
             {
-                ser.Write(BytesByChar[c], Bits);
+                ser.Write(_bytes[c], _bits);
             }
         }
 
@@ -238,7 +260,7 @@ namespace com.Dunkingmachine.Utility
             var chars = new char[length];
             for (int i = 0; i < length; i++)
             {
-                chars[i] = CharsByByte[(byte) ser.Read(Bits)];
+                chars[i] = _chars[(byte) ser.Read(_bits)];
             }
 
             return new string(chars);
