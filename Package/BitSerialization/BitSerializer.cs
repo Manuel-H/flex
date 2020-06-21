@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Text;
+using com.Dunkingmachine.Utility;
 
 namespace com.Dunkingmachine.BitSerialization
 {
     public class BitSerializer
     {
-
+        private static StringEncoder _stringEncoder = new StringEncoder();
         private readonly BitBuffer _buffer;
         public BitBuffer.Mode BufferMode => _buffer.BufferMode;
         public bool LastByte => _buffer.LastByte;
@@ -318,31 +319,64 @@ namespace com.Dunkingmachine.BitSerialization
             return BitConverter.ToSingle(bytes, 0);
         }
 
-        public void WriteString(string value)
+        public void WriteString(string value, bool forceUtf8 = false)
         {
-            var bytes = Encoding.UTF8.GetBytes(value);
-            var length = bytes.Length;
+            var chars = value.ToCharArray();
+            var set = forceUtf8 ? null :_stringEncoder.GetEncodingSet(chars);
+            if (set == null) //encode with utf8
+            {
+                _buffer.Write(0, 3);
+                byte[] bytes = Encoding.UTF8.GetBytes(chars);
+                WriteStringLength(bytes.Length);
+                foreach (var b in bytes)
+                {
+                    _buffer.Write(b, 8);
+                }
+            }
+            else
+            {
+                _buffer.Write((ulong) set.Index, 3);
+                WriteStringLength(chars.Length);
+                set.Encode(_buffer, chars);
+            }
+
+        }
+
+        private void WriteStringLength(int length)
+        {
             if(length > short.MaxValue)
                 throw new Exception("String length exceeds allowed size!");
             _buffer.Write(length > 127 ? 1U : 0, 1); //write category: 0 = small string, 1 = big string
             _buffer.Write((ulong) length, length > 127 ? 15 : 7); //write length using bits allowed by category
-            foreach (var b in bytes)
-            {
-                _buffer.Write(b, 8);
-            }
         }
 
         public string ReadString()
         {
-            var category = _buffer.Read(1);
-            var length = (int)_buffer.Read(category == 1 ? 15 : 7);
-            var bytes = new byte[length];
-            for (var i = 0; i < length; i++)
+            var setIndex = _buffer.Read(3);
+            if (setIndex == 0)
             {
-                bytes[i] = (byte) _buffer.Read(8);
+                var length = ReadStringLength();
+                var bytes = new byte[length];
+                for (var i = 0; i < length; i++)
+                {
+                    bytes[i] = (byte) _buffer.Read(8);
+                }
+
+                return Encoding.UTF8.GetString(bytes);
+            }
+            else
+            {
+                var set = _stringEncoder.GetEncodingSet((int) setIndex);
+                var length = ReadStringLength();
+                return set.Decode(_buffer, length);
             }
 
-            return Encoding.UTF8.GetString(bytes);
+        }
+
+        private int ReadStringLength()
+        {
+            var category = _buffer.Read(1);
+            return (int)_buffer.Read(category == 1 ? 15 : 7);
         }
     }
 }
