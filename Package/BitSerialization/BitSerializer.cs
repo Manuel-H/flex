@@ -1,34 +1,56 @@
 ﻿using System;
 using System.Text;
 
+// Ignore some Inspections:
+// ReSharper disable UnusedMember.Global
+
 namespace com.Dunkingmachine.BitSerialization
 {
     public class BitSerializer
     {
-
         private readonly BitBuffer _buffer;
-        public BitBuffer.Mode BufferMode => _buffer.BufferMode;
-        public bool LastByte => _buffer.LastByte;
 
+        /// <summary>
+        ///     Creates a serializing / writeOnly <see cref="BitSerializer"/>
+        /// </summary>
         public BitSerializer()
         {
             _buffer = new BitBuffer();
         }
 
+        /// <summary>
+        ///     Creates a deserializing / readonly <see cref="BitSerializer"/>
+        /// </summary>
+        /// <param name="bytes"></param>
         public BitSerializer(byte[] bytes)
         {
             _buffer = new BitBuffer(bytes);
         }
 
+        /// <summary>
+        ///    True when the <see cref="BitSerializer"/> can only deserialize
+        /// </summary>
+        public bool IsReadonly => _buffer.BufferMode == BitBuffer.Mode.Read;
+
+        /// <summary>
+        ///     Returns all bytes from the buffer that have been written by now
+        /// </summary>
+        /// <returns>Byte array containing all serialized bits</returns>
         public byte[] GetBytes()
         {
             return _buffer.GetBytes();
         }
 
+        /// <summary>
+        ///     <seealso cref="BitBuffer.Skip"/>
+        /// </summary>
+        /// <param name="bits"></param>
         public void Skip(int bits)
         {
             _buffer.Skip(bits);
         }
+
+        #region Enum
 
         public void WriteEnumInt(uint value)
         {
@@ -57,6 +79,11 @@ namespace com.Dunkingmachine.BitSerialization
         {
             return (uint) _buffer.Read(ReadBool() ? ReadBool() ? 32 : 10 : 4);
         }
+
+        #endregion
+
+        #region Numbers
+
         public void WriteVarInt(int value)
         {
             if (value >= 0)
@@ -68,7 +95,7 @@ namespace com.Dunkingmachine.BitSerialization
                 _buffer.Write(1,1);
                 value = -value;
             }
-            
+
             if (value > 255)
             {
                 _buffer.Write(1,1);
@@ -98,7 +125,7 @@ namespace com.Dunkingmachine.BitSerialization
                 value = -value;
             return value;
         }
-        
+
         public void WriteVarLong(long value)
         {
             if (value >= 0)
@@ -110,7 +137,7 @@ namespace com.Dunkingmachine.BitSerialization
                 _buffer.Write(1,1);
                 value = -value;
             }
-            
+
             do
             {
                 _buffer.Write((ulong) (value & 127), 7);
@@ -118,7 +145,7 @@ namespace com.Dunkingmachine.BitSerialization
                 _buffer.Write(value > 0 ? 1u : 0, 1);
             } while (value > 0);
         }
-        
+
         public long ReadVarLong()
         {
             var sign = _buffer.Read(1);
@@ -129,11 +156,35 @@ namespace com.Dunkingmachine.BitSerialization
                 value |= (long) (_buffer.Read(7) << shift);
                 shift += 7;
             } while (_buffer.Read(1) == 1);
-        
+
             if (sign == 1)
                 value = -value;
             return value;
         }
+
+        public void WriteFloatLossless(float value)
+        {
+            var bytes = BitConverter.GetBytes(value);
+            var littleEndian = BitConverter.IsLittleEndian;
+            for (var i = 0; i < 4; i++)
+            {
+                _buffer.Write(bytes[littleEndian ? i : 3 - i], 8);
+            }
+        }
+
+        public float ReadFloatLossless()
+        {
+            var littleEndian = BitConverter.IsLittleEndian;
+            var bytes = new byte[4];
+            for (int i = 0; i < 4; i++)
+            {
+                bytes[littleEndian ? i : 3 - i] = (byte) _buffer.Read(8);
+            }
+
+            return BitConverter.ToSingle(bytes, 0);
+        }
+
+        // ReSharper disable once CognitiveComplexity
         public void WriteFloatLossyAuto(float value)
         {
             var ovalue = value;
@@ -145,7 +196,7 @@ namespace com.Dunkingmachine.BitSerialization
                 WriteFloatLossless(ovalue);
                 return;
             }
-            
+
             if (value > 0.4999f)
             {
                 if (value > 15.999f)
@@ -192,7 +243,6 @@ namespace com.Dunkingmachine.BitSerialization
             _buffer.Write((ulong)(value*mult+0.5f), bits);
         }
 
-
         private float ReadFloatLossyAuto(ulong cfg)
         {
             switch (cfg)
@@ -215,6 +265,7 @@ namespace com.Dunkingmachine.BitSerialization
                     throw new Exception("What the Fuck Did You Just Bring Upon This Cursed Land");
             }
         }
+
         public float ReadFloatLossyAuto()
         {
             var cfg = _buffer.Read(3);
@@ -225,8 +276,7 @@ namespace com.Dunkingmachine.BitSerialization
                 value = -value;
             return value;
         }
-        
-        
+
         private float ReadQuantizedFloat(int mult, int bits)
         {
             return ((float) _buffer.Read(bits)) / mult;
@@ -264,7 +314,7 @@ namespace com.Dunkingmachine.BitSerialization
         {
             _buffer.Write(value,bits);
         }
-        
+
         public void WriteUInt(uint value, int bits)
         {
             _buffer.Write(value, bits);
@@ -275,7 +325,11 @@ namespace com.Dunkingmachine.BitSerialization
             var value = (uint) _buffer.Read(bits);
             return value;
         }
-        
+
+        #endregion
+
+        #region Bytes
+
         public byte ReadByte()
         {
             return (byte) _buffer.Read(8);
@@ -285,6 +339,10 @@ namespace com.Dunkingmachine.BitSerialization
         {
             _buffer.Write(value, 8);
         }
+
+        #endregion
+
+        #region Booleans
 
         public void WriteBool(bool value)
         {
@@ -296,34 +354,16 @@ namespace com.Dunkingmachine.BitSerialization
             return _buffer.Read(1) == 1u;
         }
 
-        public void WriteFloatLossless(float value)
-        {
-            var bytes = BitConverter.GetBytes(value);
-            var littleEndian = BitConverter.IsLittleEndian;
-            for (var i = 0; i < 4; i++)
-            {
-                _buffer.Write(bytes[littleEndian ? i : 3 - i], 8);
-            }
-        }
+        #endregion
 
-        public float ReadFloatLossless()
-        {
-            var littleEndian = BitConverter.IsLittleEndian;
-            var bytes = new byte[4];
-            for (int i = 0; i < 4; i++)
-            {
-                bytes[littleEndian ? i : 3 - i] = (byte) _buffer.Read(8);
-            }
-
-            return BitConverter.ToSingle(bytes, 0);
-        }
+        #region Strings
 
         public void WriteString(string value)
         {
             var bytes = Encoding.UTF8.GetBytes(value);
             var length = bytes.Length;
             if(length > short.MaxValue)
-                throw new Exception("String length exceeds allowed size!");
+                throw new InvalidOperationException("String length exceeds allowed size!");
             _buffer.Write(length > 127 ? 1U : 0, 1); //write category: 0 = small string, 1 = big string
             _buffer.Write((ulong) length, length > 127 ? 15 : 7); //write length using bits allowed by category
             foreach (var b in bytes)
@@ -344,5 +384,7 @@ namespace com.Dunkingmachine.BitSerialization
 
             return Encoding.UTF8.GetString(bytes);
         }
+
+        #endregion
     }
 }
