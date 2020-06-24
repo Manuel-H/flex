@@ -67,6 +67,7 @@ namespace com.Dunkingmachine.BitSerialization
             else
             {
                 _buffer.Write(1,1);
+                value++;
                 value = -value;
             }
             
@@ -96,7 +97,9 @@ namespace com.Dunkingmachine.BitSerialization
             var sign = _buffer.Read(1);
             var value = (int) _buffer.Read(ReadBool() ? ReadBool() ? 31 : 14 : 8);
             if (sign == 1)
-                value = -value;
+            {
+                value = -value - 1;
+            }
             return value;
         }
         
@@ -109,6 +112,7 @@ namespace com.Dunkingmachine.BitSerialization
             else
             {
                 _buffer.Write(1,1);
+                value++;
                 value = -value;
             }
             
@@ -130,9 +134,11 @@ namespace com.Dunkingmachine.BitSerialization
                 value |= (long) (_buffer.Read(7) << shift);
                 shift += 7;
             } while (_buffer.Read(1) == 1);
-        
+
             if (sign == 1)
-                value = -value;
+            {
+                value = -value-1;
+            }
             return value;
         }
         public void WriteFloatLossyAuto(float value)
@@ -243,7 +249,7 @@ namespace com.Dunkingmachine.BitSerialization
             else
             {
                 _buffer.Write(1, 1);
-                _buffer.Write((ulong) -value, bits-1);
+                _buffer.Write((ulong) -++value, bits-1);
             }
         }
 
@@ -252,7 +258,9 @@ namespace com.Dunkingmachine.BitSerialization
             var sign = _buffer.Read(1);
             var value = (int) _buffer.Read(bits-1);
             if (sign == 1)
-                value = -value;
+            {
+                value = -value-1;
+            }
             return value;
         }
 

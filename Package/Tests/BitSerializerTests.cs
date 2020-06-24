@@ -11,7 +11,6 @@ namespace MyPackages.BitSerialization.Tests
 {
     public class BitSerializerTests
     {
-
         [Test]
         public void TestBitBuffer()
         {
@@ -23,7 +22,7 @@ namespace MyPackages.BitSerialization.Tests
             writebuffer.Write(21, 6);
             var bytes = writebuffer.GetBytes();
             var readbuffer = new BitBuffer(bytes);
-            
+
             Assert.AreEqual(123, readbuffer.Read(7));
             Assert.AreEqual(1337, readbuffer.Read(13));
             Assert.AreEqual(69, readbuffer.Read(9));
@@ -41,6 +40,7 @@ namespace MyPackages.BitSerialization.Tests
                 writebuffer.Write(123456789876543210, 59);
                 writebuffer.Write(21, 6);
             }
+
             watch.Stop();
             Debug.Log(watch.ElapsedMilliseconds);
             bytes = writebuffer.GetBytes();
@@ -48,11 +48,11 @@ namespace MyPackages.BitSerialization.Tests
             watch.Restart();
             for (int i = 0; i < 100000; i++)
             {
-                 readbuffer.Read(7);
-                 readbuffer.Read(13);
-                 readbuffer.Read(9);
-                 readbuffer.Read(59);
-                 readbuffer.Read(6);
+                readbuffer.Read(7);
+                readbuffer.Read(13);
+                readbuffer.Read(9);
+                readbuffer.Read(59);
+                readbuffer.Read(6);
             }
 
             Debug.Log(watch.ElapsedMilliseconds);
@@ -68,7 +68,7 @@ namespace MyPackages.BitSerialization.Tests
             var bytes = writer.GetBytes();
             var reader = new BitSerializer(bytes);
             Assert.AreEqual(true, reader.ReadBool());
-            Assert.AreEqual(1==0, reader.ReadBool());
+            Assert.AreEqual(1 == 0, reader.ReadBool());
             Assert.AreEqual(false, reader.ReadBool());
         }
 
@@ -89,17 +89,17 @@ namespace MyPackages.BitSerialization.Tests
             Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() - 56971f) < 0.00001f);
             Assert.IsTrue(Math.Abs(reader.ReadFloatLossyAuto() - 0.00000145f) < 0.00001f);
         }
-        
+
         [Test]
         public void TestFloatSerialization()
         {
             var serializer = new BitSerializer();
             serializer.WriteFloatLossless(0.0125f);
-            serializer.WriteFloatLossless(1/461611f);
+            serializer.WriteFloatLossless(1 / 461611f);
             serializer.WriteFloatLossless(-1586.123f);
             serializer = new BitSerializer(serializer.GetBytes());
             Assert.AreEqual(0.0125f, serializer.ReadFloatLossless());
-            Assert.AreEqual(1/461611f, serializer.ReadFloatLossless());
+            Assert.AreEqual(1 / 461611f, serializer.ReadFloatLossless());
             Assert.AreEqual(-1586.123f, serializer.ReadFloatLossless());
         }
 
@@ -133,16 +133,33 @@ namespace MyPackages.BitSerialization.Tests
         }
 
         [Test]
+        public void TestMinValues()
+        {
+            var ser = new BitSerializer();
+            ser.WriteVarInt(int.MinValue);
+            ser.WriteVarLong(long.MinValue);
+            ser.WriteInt(int.MinValue, 32);
+            var bytes = ser.GetBytes();
+            ser = new BitSerializer(bytes);
+            Assert.AreEqual(ser.ReadVarInt(), int.MinValue);
+            Assert.AreEqual(ser.ReadVarLong(), long.MinValue);
+            Assert.AreEqual(ser.ReadInt(32), int.MinValue);
+        }
+
+        [Test]
         public void TestStringSerialization()
         {
             var serializer = new BitSerializer();
             serializer.WriteString("hello");
-            serializer.WriteString("There once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.");
+            serializer.WriteString(
+                "There once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.");
             serializer.WriteString("");
             serializer.WriteString("9SD)=js5adf09ü'*df0ß");
             serializer = new BitSerializer(serializer.GetBytes());
             Assert.AreEqual("hello", serializer.ReadString());
-            Assert.AreEqual("There once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.", serializer.ReadString());
+            Assert.AreEqual(
+                "There once was a man from Peru;who dreamed he was eating his shoe. He woke with a fright in the middle of the night to find that his dream had come true.",
+                serializer.ReadString());
             Assert.AreEqual("", serializer.ReadString());
             Assert.AreEqual("9SD)=js5adf09ü'*df0ß", serializer.ReadString());
         }
@@ -162,9 +179,10 @@ namespace MyPackages.BitSerialization.Tests
             {
                 serializer.WriteString(teststring);
             }
+
             sw.Stop();
             var bytes = serializer.GetBytes();
-            Debug.Log("Flex: "+bytes.Length+" bytes | "+sw.ElapsedMilliseconds+" ms");
+            Debug.Log("Flex: " + bytes.Length + " bytes | " + sw.ElapsedMilliseconds + " ms");
             double length = bytes.Length;
             serializer = new BitSerializer();
             sw.Restart();
@@ -172,11 +190,13 @@ namespace MyPackages.BitSerialization.Tests
             {
                 serializer.WriteString(teststring, true);
             }
+
             sw.Stop();
             bytes = serializer.GetBytes();
-            Debug.Log("Utf8: "+bytes.Length+" bytes | "+sw.ElapsedMilliseconds+" ms");
-            Debug.Log("Compression: "+(1-length/bytes.Length).ToString("P1"));
+            Debug.Log("Utf8: " + bytes.Length + " bytes | " + sw.ElapsedMilliseconds + " ms");
+            Debug.Log("Compression: " + (1 - length / bytes.Length).ToString("P1"));
         }
+
         [Test]
         public void TextMixedSerialization()
         {
@@ -189,6 +209,7 @@ namespace MyPackages.BitSerialization.Tests
                 serializer.WriteBool(true);
                 serializer.WriteVarInt(-378996);
             }
+
             var bytes = serializer.GetBytes();
             serializer = new BitSerializer(bytes);
 
@@ -196,12 +217,12 @@ namespace MyPackages.BitSerialization.Tests
             {
                 Assert.AreEqual(-18151826, serializer.ReadInt(26));
                 Assert.AreEqual("9SD)=js5adf09ü'*df0ß", serializer.ReadString());
-                Assert.AreEqual(1/461611f, serializer.ReadFloatLossless());
+                Assert.AreEqual(1 / 461611f, serializer.ReadFloatLossless());
                 Assert.AreEqual(true, serializer.ReadBool());
                 Assert.AreEqual(-378996, serializer.ReadVarInt());
             }
         }
-        
+
         [Test]
         public void WriteString_StringExceedsMaxLength_ExceptionIsThrown()
         {
@@ -211,7 +232,7 @@ namespace MyPackages.BitSerialization.Tests
             {
                 builder.Append((char) Random.Range('a', 'Z'));
             }
-            
+
             var serializer = new BitSerializer();
             Assert.Throws<Exception>(() => serializer.WriteString(builder.ToString()));
         }
