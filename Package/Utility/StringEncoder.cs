@@ -5,7 +5,7 @@ using com.Dunkingmachine.BitSerialization;
 
 namespace com.Dunkingmachine.Utility
 {
-    public class StringEncoder
+    internal class StringEncoder
     {
         private readonly EncodingLevel[] _levelsA;
         private readonly EncodingLevel[] _levelsB;
@@ -60,7 +60,7 @@ namespace com.Dunkingmachine.Utility
                             new EncodingSet(ind++, 6, "qwertzuiopasdfghjklyxcvbnmQWERTZUIOPASDFGHJKLYXCVBNM0123456789_."), //mixed case keys
                         }
                     },
-                    
+
                     new EncodingLevel
                     {
                         Sets = new[]
@@ -138,7 +138,7 @@ namespace com.Dunkingmachine.Utility
                         return encodingSet;
                 }
             }
-            
+
             if (levelB != null)
             {
                 foreach (var encodingSet in levelB.Sets)
@@ -147,7 +147,7 @@ namespace com.Dunkingmachine.Utility
                         return encodingSet;
                 }
             }
-            
+
 
             return null;
         }
@@ -190,7 +190,7 @@ namespace com.Dunkingmachine.Utility
         }
     }
 
-    public class EncodingLevel
+    internal class EncodingLevel
     {
         public void Reset()
         {
@@ -218,7 +218,7 @@ namespace com.Dunkingmachine.Utility
         public EncodingSet[] Sets;
     }
 
-    public class EncodingSet
+    internal class EncodingSet
     {
         public EncodingSet(int index, int bits, string setString)
         {
@@ -237,7 +237,7 @@ namespace com.Dunkingmachine.Utility
                 _bytes[c] = i;
             }
         }
-        
+
         public bool Valid;
         public readonly int Index;
         private readonly int _bits;
