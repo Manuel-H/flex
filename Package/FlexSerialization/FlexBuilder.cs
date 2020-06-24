@@ -14,7 +14,9 @@ namespace com.Dunkingmachine.FlexSerialization
     {
         private const string MetaFileExtension = "flexmeta";
         private const string BuiltinNamespace = "com.Dunkingmachine.FlexSerialization";
+
         private Dictionary<string, FlexClassInfo> _infos = new Dictionary<string, FlexClassInfo>();
+
         public bool StripDefaultValues { get; set; }
 
         private void BuildMetaFiles(string path)
@@ -78,7 +80,7 @@ namespace com.Dunkingmachine.FlexSerialization
             cb.AppendLine("\t\t{");
             cb.Append(string.Join("," + Environment.NewLine, _infos.Where(i => i.Value.Type != null).Select(t => "\t\t\t{"+t.Value.Id+", typeof(" + t.Value.Type.GetFullExtendedTypename() + ")}")));
             cb.AppendLine(Environment.NewLine+"\t\t};");
-            
+
             cb.AppendLine("\t}");
             cb.Append("}");
             File.WriteAllText(DataPath +"/FlexInitializer.cs", cb.ToString());
@@ -350,7 +352,7 @@ namespace com.Dunkingmachine.FlexSerialization
                 if (!usings.Contains(mtype.Namespace))
                     usings.Add(mtype.Namespace);
 
-                
+
                 CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly, addMemberId:true, instance: StripDefaultValues? instance : null);
             }
 
@@ -484,7 +486,7 @@ namespace com.Dunkingmachine.FlexSerialization
 
             return sortedTypes;
         }
-        
+
 
         private static string GetCompareString(string access, object value, Type type)
         {

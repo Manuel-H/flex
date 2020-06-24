@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace com.Dunkingmachine.Utility
 {
-    public static class TypeExtensions
+    internal static class TypeExtensions
     {
         private static readonly Type TypeOfString = typeof(string);
         private static readonly Type TypeOfList = typeof(List<>);
@@ -14,6 +14,7 @@ namespace com.Dunkingmachine.Utility
         {
             return !type.IsAbstract && !type.IsInterface && (type.IsClass || (type.IsValueType && !type.IsScalarType()));
         }
+
         public static bool IsScalarType(this Type type)
         {
             return type.IsPrimitive || type == TypeOfString || type.IsEnum;
@@ -33,7 +34,7 @@ namespace com.Dunkingmachine.Utility
         {
             return type.GetElementType() ?? type.GetGenericArguments()[0];
         }
-        
+
         public static string GetExtendedTypeName(this Type type)
         {
             return type?.FullName?.Replace(type.Namespace + ".", "").Replace('+', '.') ?? "Null";
@@ -43,7 +44,7 @@ namespace com.Dunkingmachine.Utility
         {
             return type?.FullName?.Replace('+', '.') ?? "Null";
         }
-        
+
         public static string GetFullCleanTypeName(this Type type)
         {
             return type?.FullName?.Replace('+', '.').Replace(".","") ?? "Null";

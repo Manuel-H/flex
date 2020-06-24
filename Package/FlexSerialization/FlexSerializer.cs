@@ -3,26 +3,20 @@ using com.Dunkingmachine.BitSerialization;
 
 namespace com.Dunkingmachine.FlexSerialization
 {
-    public enum FlexToken {ScalarValue, BeginArray, EndArray, BeginObject, EndObject}
-    public enum FlexInstruction {}
-    
     public class FlexSerializer : BitSerializer
     {
         public const int EndStructureId = 0;
 
-        //private int _currentId = -1;
-
-        //public int CurrentId => _currentId == -1 ? ReadId() : _currentId;
-
-        public FlexSerializer() : base()
+        public FlexSerializer()
         {
-            
+
         }
 
         public FlexSerializer(byte[] bytes) : base(bytes)
         {
-            
+
         }
+
         public int ReadMemberId()
         {
             return (int) ReadUInt(ReadBool() ? 9 : 5);
@@ -38,13 +32,13 @@ namespace com.Dunkingmachine.FlexSerialization
         {
             return (int) ReadUInt(ReadBool() ? 15 : 7);
         }
-        
+
         public void WriteTypeId(int id)
         {
             WriteBool(id > 127);
             WriteUInt((uint) id, id > 127 ? 15 : 7);
         }
-        
+
         public int ReadArrayLength()
         {
             if (!ReadBool())
@@ -58,6 +52,7 @@ namespace com.Dunkingmachine.FlexSerialization
             }
             return (int) ReadUInt(20);
         }
+
         public void WriteArrayLength(int length)
         {
             if (length == -1) //-1 is interpreted as null
@@ -85,7 +80,8 @@ namespace com.Dunkingmachine.FlexSerialization
             WriteBool(index > 7);
             WriteUInt((uint) index ,index > 7 ? 7 : 3);
         }
-        public FlexToken ReadToken()
+
+        internal FlexToken ReadToken()
         {
             if (!ReadBool())
                 return FlexToken.ScalarValue;
@@ -99,7 +95,7 @@ namespace com.Dunkingmachine.FlexSerialization
             throw new Exception("Impossible Result");
         }
 
-        public void WriteToken(FlexToken token)
+        internal void WriteToken(FlexToken token)
         {
             WriteBool(token != FlexToken.ScalarValue);
             switch (token)
