@@ -55,7 +55,7 @@ namespace MyPackages.BitSerialization.Tests
         [TestCase(1)]
         [TestCase(2)]
         [TestCase(100)]
-        [TestCase(511)]
+        [TestCase(127)]
         public void WriteReadTypeIndex_ValidValues_ValueReadEqualsValuesWritten(int id)
         {
             var writeSerializer = new FlexSerializer();
