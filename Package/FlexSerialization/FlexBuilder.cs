@@ -15,22 +15,141 @@ namespace com.Dunkingmachine.FlexSerialization
         private const string MetaFileExtension = "flexmeta";
         private const string BuiltinNamespace = "com.Dunkingmachine.FlexSerialization";
 
-        private Dictionary<string, FlexClassInfo> _infos = new Dictionary<string, FlexClassInfo>();
+        private readonly Dictionary<string, FlexClassInfo> _infos = new Dictionary<string, FlexClassInfo>();
+
+        private readonly List<Type> _classInfosToProcess = new List<Type>();
+        private readonly List<Type> _processedClassInfos = new List<Type>();
 
         public bool StripDefaultValues { get; set; }
 
-        private void BuildMetaFiles(string path)
-        {
-            LoadMetaFiles(path);
-            GenerateClassInfos();
-            WriteMetaFiles(path);
-        }
+        protected override string SerializerTypeString => "FlexSerializer";
 
+        /// <inheritdoc />
         protected override void OnPostBuild()
         {
             BuildFlexMethodProvider(ProcessedTypes);
         }
 
+        /// <inheritdoc />
+        protected override void OnPreBuild()
+        {
+            BuildMetaFiles(SeralizerPath);
+        }
+
+        /// <inheritdoc />
+        protected override string CreateSerializationCode(Type type, MemberInfo[] members, List<string> usings)
+        {
+            if (!_infos.TryGetValue(type.GetFullExtendedTypename(), out var meta))
+                throw new FlexException($"Somehow no meta file for type {type.GetExtendedTypeName()} was created!");
+
+            var methodStringBuilder = new StringBuilder();
+            var instance = StripDefaultValues ? Activator.CreateInstance(type) : null;
+
+            foreach (var memberInfo in members)
+            {
+                // Skip members that are neither fields nor properties
+                if (memberInfo.MemberType != MemberTypes.Field && memberInfo.MemberType != MemberTypes.Property)
+                    continue;
+
+                // skip member that must be ignored by attribute definition
+                if (memberInfo.GetCustomAttribute<FlexIgnoreAttribute>() != null)
+                    continue;
+
+                if (memberInfo.IsPrivate())
+                {
+                    if (memberInfo.GetCustomAttribute<FlexMemberAttribute>() != null)
+                        Logger.LogWarning(
+                            $"Member {memberInfo.Name} in {type.Name} is private, all flex attributes are going to be ignored.");
+                    continue;
+                }
+
+                if (memberInfo.IsIndexProperty())
+                    continue;
+
+                if (memberInfo.DeclaringType != type
+                    && members.Any(m => m != memberInfo && m.Name == memberInfo.Name))
+                    continue;
+
+                var memberMeta = meta.MemberInfos.FirstOrDefault(m => m.MemberName == memberInfo.Name);
+                if (memberMeta == null)
+                    throw new FlexException(
+                        $"Somehow no meta info for member {memberInfo.Name} in type {type.GetExtendedTypeName()} was created!");
+
+                var memberType = memberInfo.GetUnderlyingType();
+
+                if (!usings.Contains(memberType.Namespace))
+                    usings.Add(memberType.Namespace);
+
+
+                CreateReading(methodStringBuilder, usings, memberInfo, memberMeta, memberType, "item." + memberInfo.Name,
+                    createClass: type.Assembly == Assembly,
+                    addMemberId:true,
+                    instance: StripDefaultValues? instance : null);
+            }
+
+            methodStringBuilder.AppendLine("\t\t\tserializer.WriteMemberId(FlexSerializer.EndStructureId);");
+            return methodStringBuilder.ToString();
+        }
+
+        /// <inheritdoc />
+        protected override string CreateDeserializationCode(Type type, MemberInfo[] members, List<string> usings)
+        {
+            if (!_infos.TryGetValue(type.GetFullExtendedTypename(), out var meta))
+                throw new FlexException($"Somehow no meta file for type {type.GetExtendedTypeName()} was created!");
+
+            usings.Add("com.Dunkingmachine.FlexSerialization");
+            var methodStringBuilder = new StringBuilder();
+            methodStringBuilder.AppendLine("\t\t\tvar id = serializer.ReadMemberId();");
+            methodStringBuilder.AppendLine("\t\t\twhile (id != FlexSerializer.EndStructureId)");
+            methodStringBuilder.AppendLine("\t\t\t{");
+            methodStringBuilder.AppendLine("\t\t\t\tswitch (id)");
+            methodStringBuilder.AppendLine("\t\t\t\t{");
+
+            foreach (var memberMeta in meta.MemberInfos)
+            {
+                var memberInfo = members.FirstOrDefault(m => memberMeta.MemberName == m.Name);
+                if (memberInfo == null)
+                {
+                    methodStringBuilder.AppendLine("\t\t\t\t\tcase " + memberMeta.MemberId + ":");
+                    switch (memberMeta)
+                    {
+                        case FlexArrayInfo flexArrayInfo:
+                            methodStringBuilder.AppendLine("\t\t\t\t\t\tvar aLength" + memberMeta.MemberName + " = serializer.ReadArrayLength();");
+                            methodStringBuilder.AppendLine("\t\t\t\t\t\t" + "for (var i = 0; i < aLength" + memberMeta.MemberName + "; i++)");
+                            methodStringBuilder.AppendLine("\t\t\t\t\t\t" + "{");
+                            CreateRemovedAssignment("\t\t\t\t\t\t\t", flexArrayInfo.Detail, methodStringBuilder);
+                            methodStringBuilder.AppendLine("\t\t\t\t\t\t" + "}");
+                            break;
+                        case FlexDictionaryInfo flexDictionaryInfo:
+                            //todo
+                            break;
+                        case FlexSimpleTypeInfo simple:
+                            CreateRemovedAssignment("\t\t\t\t\t\t", simple.Detail, methodStringBuilder);
+                            break;
+                    }
+                    methodStringBuilder.AppendLine("\t\t\t\t\t\tbreak;");
+                    continue;
+                }
+
+                var mtype = (memberInfo as FieldInfo)?.FieldType ?? ((PropertyInfo) memberInfo).PropertyType;
+
+                if (!usings.Contains(mtype.Namespace))
+                    usings.Add(mtype.Namespace);
+
+                methodStringBuilder.AppendLine("\t\t\t\t\tcase " + memberMeta.MemberId + ":");
+                CreateAssignment(methodStringBuilder, usings, memberInfo, mtype, "item." + memberInfo.Name + "= {0}", "item." + memberInfo.Name, memberMeta,
+                    createClass: type.Assembly == Assembly);
+
+                methodStringBuilder.AppendLine("\t\t\t\t\t\tbreak;");
+            }
+
+            methodStringBuilder.AppendLine("\t\t\t\t}");
+            methodStringBuilder.AppendLine("\t\t\t\tid = serializer.ReadMemberId();");
+            methodStringBuilder.AppendLine("\t\t\t}");
+            return methodStringBuilder.ToString();
+        }
+
+        /// <inheritdoc />
         public override void Clear(string path)
         {
             File.Delete(path+"/FlexInitializer.cs");
@@ -86,6 +205,13 @@ namespace com.Dunkingmachine.FlexSerialization
             File.WriteAllText(DataPath +"/FlexInitializer.cs", cb.ToString());
         }
 
+        private void BuildMetaFiles(string path)
+        {
+            LoadMetaFiles(path);
+            GenerateClassInfos();
+            WriteMetaFiles(path);
+        }
+
         private void LoadMetaFiles(string path)
         {
             foreach (var meta in Directory.GetFiles(path).Where(p => Path.GetExtension(p) == "." + MetaFileExtension))
@@ -103,9 +229,6 @@ namespace com.Dunkingmachine.FlexSerialization
                 }
             }
         }
-
-        private readonly List<Type> _classInfosToProcess = new List<Type>();
-        private readonly List<Type> _processedClassInfos = new List<Type>();
 
         private void GenerateClassInfos()
         {
@@ -311,55 +434,6 @@ namespace com.Dunkingmachine.FlexSerialization
             }
         }
 
-        protected override void OnPreBuild()
-        {
-            BuildMetaFiles(SeralizerPath);
-        }
-
-        protected override string SerializerTypeString => "FlexSerializer";
-
-        protected override string CreateSerializationCode(Type type, MemberInfo[] members, List<string> usings)
-        {
-            if (!_infos.TryGetValue(type.GetFullExtendedTypename(), out var meta))
-                throw new FlexException("Somehow no meta file for type " + type.GetExtendedTypeName() + " was created!");
-            var method = new StringBuilder();
-            object instance = null;
-            if (StripDefaultValues)
-                instance = Activator.CreateInstance(type);
-            foreach (var memberInfo in members)
-            {
-                if (memberInfo.MemberType != MemberTypes.Field && memberInfo.MemberType != MemberTypes.Property)
-                    continue;
-                if (memberInfo.GetCustomAttribute<FlexIgnoreAttribute>() != null)
-                    continue;
-                var isprivate = !(memberInfo as FieldInfo)?.IsPublic ?? ((PropertyInfo) memberInfo).GetSetMethod() == null;
-                if (isprivate)
-                {
-                    if (memberInfo.GetCustomAttribute<FlexNumericRangeAttribute>() != null)
-                        Logger.LogWarning("member " + memberInfo.Name + " in " + type.Name + " is private, but wants to be deserialized. pls make public kthx");
-                    continue;
-                }
-
-                if (memberInfo is PropertyInfo prop && prop.GetIndexParameters()?.Length > 0  || (memberInfo.DeclaringType != type &&members.Any(m => m != memberInfo && m.Name == memberInfo.Name)))
-                    continue;
-
-                var memberMeta = meta.MemberInfos.FirstOrDefault(m => m.MemberName == memberInfo.Name);
-                if (memberMeta == null)
-                    throw new FlexException("Somehow no meta info for member " + memberInfo.Name + " in type " + type.GetExtendedTypeName() + " was created!");
-
-                var mtype = (memberInfo as FieldInfo)?.FieldType ?? ((PropertyInfo) memberInfo).PropertyType;
-
-                if (!usings.Contains(mtype.Namespace))
-                    usings.Add(mtype.Namespace);
-
-
-                CreateReading(method, usings, memberInfo, memberMeta, mtype, "item." + memberInfo.Name, createClass: type.Assembly == Assembly, addMemberId:true, instance: StripDefaultValues? instance : null);
-            }
-
-            method.AppendLine("\t\t\tserializer.WriteMemberId(FlexSerializer.EndStructureId);");
-            return method.ToString();
-        }
-
         private void CreateReading(StringBuilder method, List<string> usings, MemberInfo memberInfo, FlexMemberInfo info, Type mtype, string access,
             string indents = "\t\t\t", bool createClass = true, bool addMemberId = false, object instance = null)
         {
@@ -487,7 +561,6 @@ namespace com.Dunkingmachine.FlexSerialization
             return sortedTypes;
         }
 
-
         private static string GetCompareString(string access, object value, Type type)
         {
             if (value is string s)
@@ -504,62 +577,6 @@ namespace com.Dunkingmachine.FlexSerialization
             if(value is double d)
                 return access + " != " + d.ToString("F", CultureInfo.InvariantCulture);
             return access + " != " + (value?.ToString()??"null");
-        }
-        protected override string CreateDeserializationCode(Type type, MemberInfo[] members, List<string> usings)
-        {
-            if (!_infos.TryGetValue(type.GetFullExtendedTypename(), out var meta))
-                throw new FlexException("Somehow no meta file for type " + type.GetExtendedTypeName() + " was created!");
-            usings.Add("com.Dunkingmachine.FlexSerialization");
-            var method = new StringBuilder();
-            method.AppendLine("\t\t\tvar id = serializer.ReadMemberId();");
-            method.AppendLine("\t\t\twhile (id != FlexSerializer.EndStructureId)");
-            method.AppendLine("\t\t\t{");
-            method.AppendLine("\t\t\t\tswitch (id)");
-            method.AppendLine("\t\t\t\t{");
-
-
-            foreach (var memberMeta in meta.MemberInfos)
-            {
-                var memberInfo = members.FirstOrDefault(m => memberMeta.MemberName == m.Name);
-                if (memberInfo == null)
-                {
-                    method.AppendLine("\t\t\t\t\tcase " + memberMeta.MemberId + ":");
-                    switch (memberMeta)
-                    {
-                        case FlexArrayInfo flexArrayInfo:
-                            method.AppendLine("\t\t\t\t\t\tvar aLength" + memberMeta.MemberName + " = serializer.ReadArrayLength();");
-                            method.AppendLine("\t\t\t\t\t\t" + "for (var i = 0; i < aLength" + memberMeta.MemberName + "; i++)");
-                            method.AppendLine("\t\t\t\t\t\t" + "{");
-                            CreateRemovedAssignment("\t\t\t\t\t\t\t", flexArrayInfo.Detail, method);
-                            method.AppendLine("\t\t\t\t\t\t" + "}");
-                            break;
-                        case FlexDictionaryInfo flexDictionaryInfo:
-                            //todo
-                            break;
-                        case FlexSimpleTypeInfo simple:
-                            CreateRemovedAssignment("\t\t\t\t\t\t", simple.Detail, method);
-
-                            break;
-                    }
-                    method.AppendLine("\t\t\t\t\t\tbreak;");
-                    continue;
-                }
-
-                var mtype = (memberInfo as FieldInfo)?.FieldType ?? ((PropertyInfo) memberInfo).PropertyType;
-
-                if (!usings.Contains(mtype.Namespace))
-                    usings.Add(mtype.Namespace);
-                method.AppendLine("\t\t\t\t\tcase " + memberMeta.MemberId + ":");
-                CreateAssignment(method, usings, memberInfo, mtype, "item." + memberInfo.Name + "= {0}", "item." + memberInfo.Name, memberMeta,
-                    createClass: type.Assembly == Assembly);
-
-                method.AppendLine("\t\t\t\t\t\tbreak;");
-            }
-
-            method.AppendLine("\t\t\t\t}");
-            method.AppendLine("\t\t\t\tid = serializer.ReadMemberId();");
-            method.AppendLine("\t\t\t}");
-            return method.ToString();
         }
 
         private void CreateRemovedAssignment(string indents, FlexDetail detail, StringBuilder method)

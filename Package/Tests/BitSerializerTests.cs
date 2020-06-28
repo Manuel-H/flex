@@ -137,20 +137,6 @@ namespace MyPackages.BitSerialization.Tests
         }
 
         [Test]
-        public void TestMinValues()
-        {
-            var ser = new BitSerializer();
-            ser.WriteVarInt(int.MinValue);
-            ser.WriteVarLong(long.MinValue);
-            ser.WriteInt(int.MinValue, 32);
-            var bytes = ser.GetBytes();
-            ser = new BitSerializer(bytes);
-            Assert.AreEqual(ser.ReadVarInt(), int.MinValue);
-            Assert.AreEqual(ser.ReadVarLong(), long.MinValue);
-            Assert.AreEqual(ser.ReadInt(32), int.MinValue);
-        }
-
-        [Test]
         public void WriteReadString_ArbitraryStringValues_ValueWrittenEqualsValueRead()
         {
             var serializer = new BitSerializer();
@@ -236,7 +222,7 @@ namespace MyPackages.BitSerialization.Tests
         }
 
         [Test]
-        public void WriteRead_ArbitraryValues_ValueWrittenEqualsValueRead()
+        public void VariousWriteRead_ArbitraryValues_ValueWrittenEqualsValueRead()
         {
             var serializer = new BitSerializer();
             for (int i = 0; i < 100; i++)

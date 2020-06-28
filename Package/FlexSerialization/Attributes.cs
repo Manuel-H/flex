@@ -2,6 +2,9 @@
 
 namespace com.Dunkingmachine.FlexSerialization
 {
+    [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+    public abstract class FlexMemberAttribute : Attribute { }
+
     /// <summary>
     ///     Put over class to mark this type as a data type, so that it's included in the auto-generation of
     ///     serializer classes
@@ -16,7 +19,7 @@ namespace com.Dunkingmachine.FlexSerialization
     ///     Put over members to exclude them from serialization
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class FlexIgnoreAttribute : Attribute
+    public class FlexIgnoreAttribute : FlexMemberAttribute
     {
 
     }
@@ -26,7 +29,7 @@ namespace com.Dunkingmachine.FlexSerialization
     ///     which decreases the number of bits used to serialize the member.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-    public class FlexNumericRangeAttribute : Attribute
+    public class FlexNumericRangeAttribute : FlexMemberAttribute
     {
         public long MinValue;
         public long MaxValue;
